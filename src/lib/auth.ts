@@ -49,8 +49,10 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  ],
+    "https://dashboard.somosvanguardia.com.br",
+    "http://localhost:3000",
+    process.env.BETTER_AUTH_URL,
+  ].filter(Boolean) as string[],
 });
 
 export type Session = typeof auth.$Infer.Session;
