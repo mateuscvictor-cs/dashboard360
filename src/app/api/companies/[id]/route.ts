@@ -1,0 +1,114 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const company = await prisma.company.findUnique({
+      where: { id },
+      include: {
+        contacts: true,
+        deliveries: {
+          orderBy: { dueDate: "asc" },
+        },
+        workshops: {
+          orderBy: { date: "asc" },
+        },
+        hotseats: {
+          orderBy: { date: "asc" },
+        },
+        meetings: {
+          orderBy: { date: "asc" },
+        },
+        ipcs: true,
+        timelineEvents: {
+          orderBy: { date: "desc" },
+          take: 50,
+        },
+        csOwner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        squad: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        aiInsights: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    if (!company) {
+      return NextResponse.json(
+        { error: "Empresa não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(company);
+  } catch (error) {
+    console.error("Erro ao buscar empresa:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    return NextResponse.json(
+      { error: "Erro ao buscar empresa", details: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    const company = await prisma.company.update({
+      where: { id },
+      data: {
+        name: body.name,
+        cnpj: body.cnpj,
+        segment: body.segment,
+        plan: body.plan,
+        framework: body.framework,
+        mrr: body.mrr ? parseFloat(body.mrr) : undefined,
+        tags: body.tags,
+        csOwnerId: body.csOwnerId,
+        squadId: body.squadId,
+        contractStart: body.contractStart ? new Date(body.contractStart) : undefined,
+        contractEnd: body.contractEnd ? new Date(body.contractEnd) : undefined,
+        docsLink: body.docsLink,
+        fathomLink: body.fathomLink,
+      },
+      include: {
+        contacts: true,
+        deliveries: true,
+        workshops: true,
+        hotseats: true,
+        csOwner: true,
+        squad: true,
+      },
+    });
+
+    return NextResponse.json(company);
+  } catch (error) {
+    console.error("Erro ao atualizar empresa:", error);
+    return NextResponse.json(
+      { error: "Erro ao atualizar empresa" },
+      { status: 500 }
+    );
+  }
+}

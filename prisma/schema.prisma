@@ -1,0 +1,964 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  CS_OWNER
+  CLIENT
+}
+
+enum UserStatus {
+  ONLINE
+  BUSY
+  OFFLINE
+}
+
+enum HealthStatus {
+  CRITICAL
+  RISK
+  ATTENTION
+  HEALTHY
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  WHATSAPP
+  NOTE
+  TASK
+}
+
+enum PendingType {
+  FOLLOWUP
+  CHECKLIST
+  DELIVERY
+  NUTRITION
+}
+
+enum PendingStatus {
+  PENDING
+  OVERDUE
+  COMPLETED
+}
+
+enum DemandType {
+  SUPPORT
+  ESCALATION
+  REQUEST
+  INTERNAL
+}
+
+enum DemandStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  PENDING
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  DELAYED
+}
+
+enum TemplateCategory {
+  DAILY
+  WEEKLY
+  ONBOARDING
+  NUTRITION
+  RESEARCH
+  CUSTOM
+}
+
+enum AppliedTemplateStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TimelineEventType {
+  MEETING
+  MESSAGE
+  DELIVERY
+  INCIDENT
+  MILESTONE
+  FEEDBACK
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum EngagementLevel {
+  HIGH
+  MEDIUM
+  LOW
+  INACTIVE
+}
+
+enum AlertType {
+  ACTIVITY_DROP
+  DELIVERY_DELAY
+  NEGATIVE_SENTIMENT
+  NO_RESPONSE
+  CHURN_RISK
+  EXPANSION_OPPORTUNITY
+}
+
+enum ReasonType {
+  RISK
+  DELIVERY
+  ADOPTION
+  SENTIMENT
+  EXPANSION
+  SILENCE
+}
+
+enum InsightType {
+  RECOMMENDATION
+  ALERT
+  OPPORTUNITY
+  TREND
+  WARNING
+}
+
+enum InsightStatus {
+  ACTIVE
+  READ
+  ACTIONED
+  DISMISSED
+  EXPIRED
+}
+
+enum InsightScope {
+  COMPANY
+  CS_OWNER
+  PORTFOLIO
+  SQUAD
+}
+
+enum SurveyType {
+  NPS
+  CSAT
+  ADOPTION_CHECK
+}
+
+enum SurveyStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+enum IPCStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MeetingRecurrence {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  CUSTOM
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum Cadence {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum DocumentType {
+  PRESENTATION
+  SPREADSHEET
+  PDF
+  VIDEO
+  LINK
+  OTHER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String
+  image         String?
+  role          UserRole  @default(CLIENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id])
+  csOwnerId String?  @unique
+
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  sessions         Session[]
+  accounts         Account[]
+  surveyResponses  SurveyResponse[]
+  sentInvites      Invite[]
+  createdResources ClientResource[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verifications")
+}
+
+model CSOwner {
+  id              String     @id @default(cuid())
+  name            String
+  email           String     @unique
+  avatar          String?
+  role            String     @default("CS Owner")
+  status          UserStatus @default(OFFLINE)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  weeklyCompletion  Float @default(0)
+  avgResponseTime   Float @default(0)
+  npsScore          Float @default(0)
+  accountsAtRisk    Int   @default(0)
+
+  user User?
+
+  companies           Company[]
+  activities          TeamActivity[]
+  pendings            Pending[]
+  assignedDemands     Demand[]
+  checklistItems      ChecklistItem[]
+  whatsappGroups      WhatsAppGroup[]
+  appliedTemplates    AppliedTemplate[]
+  squadMembers        SquadMember[]
+  createdWorkshops    Workshop[]
+  createdHotseats     Hotseat[]
+  aiInsights          AIInsight[]
+  requestedSurveys    Survey[]
+  deliveryCompletions DeliveryCompletion[]
+  uploadedDocuments   DeliveryDocument[]
+
+  @@map("cs_owners")
+}
+
+model Squad {
+  id           String   @id @default(cuid())
+  name         String
+  capacity     Int      @default(100)
+  currentLoad  Int      @default(0)
+  blockedItems Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  members          SquadMember[]
+  companies        Company[]
+  appliedTemplates AppliedTemplate[]
+  aiInsights       AIInsight[]
+
+  @@map("squads")
+}
+
+model SquadMember {
+  id       String @id @default(cuid())
+  squad    Squad  @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  squadId  String
+  csOwner  CSOwner @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String
+
+  @@unique([squadId, csOwnerId])
+  @@map("squad_members")
+}
+
+model Company {
+  id              String       @id @default(cuid())
+  name            String
+  cnpj            String?
+  logo            String?
+  segment         String?
+  plan            String?
+  mrr             Float        @default(0)
+  healthScore     Int          @default(100)
+  healthStatus    HealthStatus @default(HEALTHY)
+  riskScore       Int          @default(0)
+  expansionScore  Int          @default(0)
+  adoptionScore   Int          @default(0)
+  lastInteraction DateTime?
+  nextDelivery    DateTime?
+  tags            String[]     @default([])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  framework        String?
+  workshopsCount   Int      @default(0)
+  hotseatsCount    Int      @default(0)
+  ipcsCount        Int      @default(0)
+  meetingsCount    Int      @default(0)
+  docsLink         String?
+  fathomLink       String?
+  contractStart    DateTime?
+  contractEnd      DateTime?
+  onboardingStatus String?
+
+  csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id])
+  csOwnerId String?
+
+  squad   Squad?  @relation(fields: [squadId], references: [id])
+  squadId String?
+
+  users           User[]
+  contacts        Contact[]
+  timelineEvents  TimelineEvent[]
+  deliveries      Delivery[]
+  usageDataPoints UsageDataPoint[]
+  activities      TeamActivity[]
+  pendings        Pending[]
+  demands         Demand[]
+  whatsappGroups  WhatsAppGroup[]
+  priorityItems   PriorityItem[]
+  aiInsights      AIInsight[]
+  alerts          Alert[]
+  workshops       Workshop[]
+  hotseats        Hotseat[]
+  ipcs            IPC[]
+  meetings        Meeting[]
+  surveys         Survey[]
+  invites         Invite[]
+  clientResources ClientResource[]
+
+  @@map("companies")
+}
+
+enum EventLocationType {
+  ONLINE
+  PRESENCIAL
+}
+
+model Workshop {
+  id            String            @id @default(cuid())
+  title         String
+  description   String?
+  date          DateTime
+  duration      Int?
+  participants  Int               @default(0)
+  locationType  EventLocationType @default(ONLINE)
+  address       String?
+  meetingLink   String?
+  fathomLink    String?
+  attachments   String[]          @default([])
+  notes         String?
+  cadence       Cadence?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  createdBy   CSOwner? @relation(fields: [createdById], references: [id])
+  createdById String?
+
+  surveys Survey[]
+
+  @@map("workshops")
+}
+
+model Hotseat {
+  id            String            @id @default(cuid())
+  title         String
+  description   String?
+  date          DateTime
+  duration      Int?
+  participants  Int               @default(0)
+  locationType  EventLocationType @default(ONLINE)
+  address       String?
+  meetingLink   String?
+  fathomLink    String?
+  attachments   String[]          @default([])
+  notes         String?
+  cadence       Cadence?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  createdBy   CSOwner? @relation(fields: [createdById], references: [id])
+  createdById String?
+
+  @@map("hotseats")
+}
+
+model Contact {
+  id              String          @id @default(cuid())
+  name            String
+  role            String?
+  email           String
+  phone           String?
+  isDecisionMaker Boolean         @default(false)
+  engagementLevel EngagementLevel @default(MEDIUM)
+  lastContact     DateTime?
+  avatar          String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  meetingParticipations DeliveryMeetingParticipant[]
+
+  @@map("contacts")
+}
+
+model TimelineEvent {
+  id           String            @id @default(cuid())
+  type         TimelineEventType
+  title        String
+  description  String?
+  date         DateTime
+  sentiment    Sentiment?
+  participants String[]          @default([])
+  createdAt    DateTime          @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("timeline_events")
+}
+
+model Delivery {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  status      DeliveryStatus @default(PENDING)
+  progress    Int            @default(0)
+  dueDate     DateTime?
+  assignee    String?
+  blockers    String[]       @default([])
+  impact      Priority       @default(MEDIUM)
+  cadence     Cadence?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  surveys    Survey[]
+  completion DeliveryCompletion?
+  meetings   DeliveryMeeting[]
+  documents  DeliveryDocument[]
+
+  @@map("deliveries")
+}
+
+model UsageDataPoint {
+  id          String   @id @default(cuid())
+  date        DateTime
+  activeUsers Int      @default(0)
+  sessions    Int      @default(0)
+  features    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("usage_data_points")
+}
+
+model TeamActivity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  description String
+  timestamp   DateTime     @default(now())
+  duration    Int?
+  outcome     String?
+  createdAt   DateTime     @default(now())
+
+  csOwner   CSOwner @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String
+
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  @@map("team_activities")
+}
+
+model Pending {
+  id        String        @id @default(cuid())
+  type      PendingType
+  title     String
+  dueDate   DateTime
+  priority  Priority      @default(MEDIUM)
+  status    PendingStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  csOwner   CSOwner @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String
+
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  @@map("pendings")
+}
+
+model Demand {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  type        DemandType   @default(REQUEST)
+  priority    Priority     @default(MEDIUM)
+  status      DemandStatus @default(OPEN)
+  dueDate     DateTime?
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  assignedTo   CSOwner? @relation(fields: [assignedToId], references: [id])
+  assignedToId String?
+
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  @@map("demands")
+}
+
+model ChecklistItem {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  priority    Priority @default(MEDIUM)
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  csOwner   CSOwner @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String
+
+  @@map("checklist_items")
+}
+
+model WhatsAppGroup {
+  id              String   @id @default(cuid())
+  name            String
+  lastMessage     String?
+  lastMessageTime DateTime?
+  unreadCount     Int      @default(0)
+  members         Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  csOwner   CSOwner @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("whatsapp_groups")
+}
+
+model ActivityTemplate {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  category    TemplateCategory @default(CUSTOM)
+  isDefault   Boolean          @default(false)
+  createdBy   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  tasks            TemplateTask[]
+  appliedTemplates AppliedTemplate[]
+
+  @@map("activity_templates")
+}
+
+model TemplateTask {
+  id               String   @id @default(cuid())
+  title            String
+  description      String?
+  priority         Priority @default(MEDIUM)
+  estimatedMinutes Int?
+  orderIndex       Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  template   ActivityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId String
+
+  @@map("template_tasks")
+}
+
+model AppliedTemplate {
+  id             String                @id @default(cuid())
+  dueDate        DateTime?
+  status         AppliedTemplateStatus @default(ACTIVE)
+  completedTasks Int                   @default(0)
+  appliedBy      String?
+  appliedAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  template   ActivityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId String
+
+  assignedTo   CSOwner? @relation(fields: [assignedToId], references: [id])
+  assignedToId String?
+
+  assignedToSquad   Squad?  @relation(fields: [assignedToSquadId], references: [id])
+  assignedToSquadId String?
+
+  @@map("applied_templates")
+}
+
+model PriorityItem {
+  id                String     @id @default(cuid())
+  reason            String
+  reasonType        ReasonType
+  priority          Priority   @default(MEDIUM)
+  recommendedAction String?
+  impact            String?
+  effort            Priority   @default(MEDIUM)
+  dueDate           DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("priority_items")
+}
+
+model AIInsight {
+  id              String        @id @default(cuid())
+  insight         String
+  evidence        String[]      @default([])
+  source          String?
+  confidence      Priority      @default(MEDIUM)
+  actionSuggested String?
+  expectedOutcome String?
+  riskIfIgnored   String?
+  type            InsightType   @default(RECOMMENDATION)
+  status          InsightStatus @default(ACTIVE)
+  scope           InsightScope  @default(COMPANY)
+  feedback        String?
+  actionTaken     Boolean       @default(false)
+  expiresAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id])
+  csOwnerId String?
+
+  squad   Squad? @relation(fields: [squadId], references: [id])
+  squadId String?
+
+  @@map("ai_insights")
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  type        AlertType
+  severity    Priority  @default(MEDIUM)
+  title       String
+  description String?
+  detectedAt  DateTime  @default(now())
+  action      String?
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("alerts")
+}
+
+model IPC {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  gptLink     String?
+  status      IPCStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("ipcs")
+}
+
+model Meeting {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  recurrence  MeetingRecurrence @default(MONTHLY)
+  duration    Int?
+  meetingLink String?
+  fathomLink  String?
+  notes       String?
+  status      MeetingStatus     @default(SCHEDULED)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("meetings")
+}
+
+model Survey {
+  id          String       @id @default(cuid())
+  type        SurveyType
+  status      SurveyStatus @default(PENDING)
+  aiSuggested Boolean      @default(false)
+  aiReason    String?
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  delivery   Delivery? @relation(fields: [deliveryId], references: [id])
+  deliveryId String?
+
+  workshop   Workshop? @relation(fields: [workshopId], references: [id])
+  workshopId String?
+
+  requestedBy CSOwner? @relation(fields: [requestedById], references: [id])
+  requestedById String?
+
+  response SurveyResponse?
+
+  @@map("surveys")
+}
+
+model SurveyResponse {
+  id String @id @default(cuid())
+
+  npsScore          Int?
+  atendimentoScore  Int?
+  prazosScore       Int?
+  qualidadeScore    Int?
+  treinamentoScore  Int?
+  clarezaScore      Int?
+
+  csatScore Int?
+
+  adoptionScore Int?
+
+  comment   String?
+  createdAt DateTime @default(now())
+
+  survey   Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  surveyId String @unique
+
+  respondent   User   @relation(fields: [respondentId], references: [id])
+  respondentId String
+
+  @@map("survey_responses")
+}
+
+model DeliveryCompletion {
+  id          String   @id @default(cuid())
+  feedback    String
+  completedAt DateTime @default(now())
+
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId String   @unique
+
+  completedBy   CSOwner @relation(fields: [completedById], references: [id])
+  completedById String
+
+  @@map("delivery_completions")
+}
+
+model DeliveryMeeting {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  duration    Int?
+  meetingLink String?
+  fathomLink  String?
+  notes       String?
+  status      MeetingStatus @default(SCHEDULED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId String
+
+  participants DeliveryMeetingParticipant[]
+
+  @@map("delivery_meetings")
+}
+
+model DeliveryMeetingParticipant {
+  id       String  @id @default(cuid())
+  name     String
+  email    String?
+  role     String?
+  attended Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  meeting   DeliveryMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meetingId String
+
+  contact   Contact? @relation(fields: [contactId], references: [id])
+  contactId String?
+
+  @@map("delivery_meeting_participants")
+}
+
+model DeliveryDocument {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  url         String
+  type        DocumentType @default(OTHER)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId String
+
+  uploadedBy   CSOwner? @relation(fields: [uploadedById], references: [id])
+  uploadedById String?
+
+  @@map("delivery_documents")
+}
+
+enum InviteType {
+  COMPANY_ADMIN
+  MEMBER_ADMIN
+  MEMBER_CS
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model Invite {
+  id          String       @id @default(cuid())
+  email       String
+  type        InviteType
+  status      InviteStatus @default(PENDING)
+  token       String       @unique
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+
+  company     Company?     @relation(fields: [companyId], references: [id])
+  companyId   String?
+
+  invitedBy   User         @relation(fields: [invitedById], references: [id])
+  invitedById String
+
+  @@map("invites")
+}
+
+enum ClientResourceType {
+  AUTOMATION
+  IPC
+  LINK
+  DOCUMENT
+  VIDEO
+}
+
+model ClientResource {
+  id          String             @id @default(cuid())
+  title       String
+  description String?
+  url         String?
+  type        ClientResourceType
+  category    String?
+  icon        String?
+  isActive    Boolean            @default(true)
+  order       Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+
+  createdBy   User?              @relation(fields: [createdById], references: [id])
+  createdById String?
+
+  @@map("client_resources")
+}
