@@ -8,7 +8,7 @@ cmds = ["npm ci"]
 cmds = ["npx prisma generate", "npm run build"]
 
 [start]
-cmd = "npx prisma db push --skip-generate && npm run start"
+cmd = "npx prisma db push && npm run start"
 
 [variables]
 NODE_ENV = "production"
