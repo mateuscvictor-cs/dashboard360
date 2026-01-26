@@ -18,21 +18,27 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
+    console.log("1. handleLogin iniciado");
+    
     if (!email || !password) {
       setError("Preencha todos os campos");
       return;
     }
 
+    console.log("2. Campos preenchidos, iniciando login...");
     setLoading(true);
     setError("");
 
     try {
+      console.log("3. Chamando signIn.email...");
       const result = await signIn.email({
         email,
         password,
       });
+      console.log("4. Resultado do signIn:", result);
 
       if (result.error) {
+        console.log("5. Erro no resultado:", result.error);
         if (result.error.message?.includes("verify")) {
           setError("Email não verificado. Verifique sua caixa de entrada.");
         } else if (result.error.message?.includes("credentials") || result.error.message?.includes("Invalid")) {
@@ -45,10 +51,11 @@ export default function LoginPage() {
       }
 
       if (result.data) {
+        console.log("6. Login bem sucedido, redirecionando...");
         window.location.href = "/admin";
       }
     } catch (err) {
-      console.error("Login error:", err);
+      console.error("ERRO CATCH:", err);
       setError("Erro ao conectar. Tente novamente.");
       setLoading(false);
     }
