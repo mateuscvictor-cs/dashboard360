@@ -30,13 +30,12 @@ export default function LoginPage() {
       const result = await signIn.email({
         email,
         password,
-        callbackURL: "/admin",
       });
 
       if (result.error) {
         if (result.error.message?.includes("verify")) {
           setError("Email não verificado. Verifique sua caixa de entrada.");
-        } else if (result.error.message?.includes("credentials")) {
+        } else if (result.error.message?.includes("credentials") || result.error.message?.includes("Invalid")) {
           setError("Email ou senha incorretos.");
         } else {
           setError(result.error.message || "Erro ao fazer login.");
@@ -45,8 +44,11 @@ export default function LoginPage() {
         return;
       }
 
-      router.refresh();
-    } catch {
+      if (result.data) {
+        window.location.href = "/admin";
+      }
+    } catch (err) {
+      console.error("Login error:", err);
       setError("Erro ao conectar. Tente novamente.");
       setLoading(false);
     }
