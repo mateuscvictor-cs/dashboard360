@@ -11,7 +11,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap,
   LogOut,
   ClipboardList,
   Sparkles,
@@ -65,7 +64,7 @@ export function ClienteSidebar() {
     router.push("/");
   };
 
-  const renderLogo = () => {
+  const renderLogo = (collapsed: boolean) => {
     if (companyInfo?.logo) {
       return (
         <Image
@@ -77,7 +76,15 @@ export function ClienteSidebar() {
         />
       );
     }
-    return <Zap className="h-5 w-5 text-white" />;
+    return (
+      <Image
+        src="/logo-vanguardia.png"
+        alt="Vanguardia"
+        width={collapsed ? 36 : 140}
+        height={36}
+        className={collapsed ? "h-9 w-9 object-contain" : "h-9 w-auto"}
+      />
+    );
   };
 
   return (
@@ -92,29 +99,35 @@ export function ClienteSidebar() {
       <div className="relative flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <Link href="/cliente/dashboard" className="flex items-center gap-3">
-            <div className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden",
-              !companyInfo?.logo && "bg-gradient-brand"
-            )}>
-              {renderLogo()}
-            </div>
-            <div>
-              <span className="font-bold text-base line-clamp-1">
-                {companyInfo?.name || "Meu Projeto"}
-              </span>
-              <span className="block text-[10px] text-muted-foreground font-medium tracking-wide uppercase">
-                {companyInfo?.framework || "Vanguardia"}
-              </span>
-            </div>
+            {companyInfo?.logo ? (
+              <>
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden">
+                  {renderLogo(false)}
+                </div>
+                <div>
+                  <span className="font-bold text-base line-clamp-1">
+                    {companyInfo.name}
+                  </span>
+                  <span className="block text-[10px] text-muted-foreground font-medium tracking-wide uppercase">
+                    {companyInfo.framework || "Vanguardia"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              renderLogo(false)
+            )}
           </Link>
         )}
         {collapsed && (
-          <div className={cn(
-            "flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 mx-auto overflow-hidden",
-            !companyInfo?.logo && "bg-gradient-brand"
-          )}>
-            {renderLogo()}
-          </div>
+          <Link href="/cliente/dashboard" className="mx-auto">
+            {companyInfo?.logo ? (
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden">
+                {renderLogo(true)}
+              </div>
+            ) : (
+              renderLogo(true)
+            )}
+          </Link>
         )}
         <Button
           variant="ghost"

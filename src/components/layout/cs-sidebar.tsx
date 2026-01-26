@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,7 +9,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap,
   Building2,
   ClipboardList,
   LogOut,
@@ -52,19 +52,25 @@ export function CSSidebar() {
       <div className="relative flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <Link href="/cs" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-brand shadow-md shadow-primary/25">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-base">Vanguardia</span>
-              <span className="block text-[10px] text-muted-foreground font-medium tracking-wide uppercase">CS Panel</span>
-            </div>
+            <Image
+              src="/logo-vanguardia.png"
+              alt="Vanguardia"
+              width={140}
+              height={36}
+              className="h-9 w-auto"
+            />
           </Link>
         )}
         {collapsed && (
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-brand shadow-md shadow-primary/25 mx-auto">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
+          <Link href="/cs" className="mx-auto">
+            <Image
+              src="/logo-vanguardia.png"
+              alt="Vanguardia"
+              width={36}
+              height={36}
+              className="h-9 w-9 object-contain"
+            />
+          </Link>
         )}
         <Button
           variant="ghost"

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogIn, Mail, Lock, Zap, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { signIn } from "@/lib/auth-client";
@@ -58,9 +59,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-background/95 backdrop-blur-xl">
         <CardHeader className="text-center space-y-4 pb-8">
           <div className="flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary/25">
-              <Zap className="h-8 w-8 text-white" />
-            </div>
+            <Image
+              src="/logo-vanguardia.png"
+              alt="Vanguardia"
+              width={180}
+              height={48}
+              className="h-12 w-auto"
+              priority
+            />
           </div>
           <div>
             <CardTitle className="text-2xl font-bold">Vanguardia 360</CardTitle>
