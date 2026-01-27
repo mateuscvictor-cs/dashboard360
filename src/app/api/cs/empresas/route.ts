@@ -10,13 +10,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const user = session.user as { csOwnerId?: string; role?: string };
+    const user = session.user as { csOwnerId?: string; role?: string; email?: string };
     const { searchParams } = new URL(request.url);
     const all = searchParams.get("all") === "true";
 
     let companies;
 
-    if (all) {
+    if (all || user.role === "ADMIN") {
       companies = await prisma.company.findMany({
         include: {
           csOwner: { select: { id: true, name: true } },
@@ -27,17 +27,28 @@ export async function GET(request: Request) {
       return NextResponse.json(
         companies.map(c => ({
           ...c,
-          canEdit: c.csOwnerId === user.csOwnerId,
+          canEdit: user.role === "ADMIN" || c.csOwnerId === user.csOwnerId,
         }))
       );
     }
 
-    if (!user.csOwnerId) {
+    let csOwnerId = user.csOwnerId;
+    
+    if (!csOwnerId && user.email) {
+      const csOwner = await prisma.cSOwner.findUnique({
+        where: { email: user.email },
+        select: { id: true },
+      });
+      csOwnerId = csOwner?.id;
+    }
+
+    if (!csOwnerId) {
+      console.log("[API cs/empresas] No csOwnerId found for user:", user.email);
       return NextResponse.json([]);
     }
 
     companies = await prisma.company.findMany({
-      where: { csOwnerId: user.csOwnerId },
+      where: { csOwnerId },
       include: {
         csOwner: { select: { id: true, name: true } },
       },

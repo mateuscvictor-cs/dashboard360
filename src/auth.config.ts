@@ -49,6 +49,17 @@ export const authConfig = {
     strategy: "jwt",
     maxAge: 7 * 24 * 60 * 60,
   },
+  cookies: {
+    sessionToken: {
+      name: "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
 } satisfies NextAuthConfig;
 
 export default authConfig;

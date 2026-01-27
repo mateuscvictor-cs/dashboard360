@@ -15,6 +15,7 @@ import {
   LogOut,
   Package,
   UserPlus,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Squads", href: "/admin/squads", icon: Users, color: "from-violet-500 to-purple-500" },
   { name: "Empresas", href: "/admin/empresas", icon: Building2, color: "from-blue-500 to-cyan-500" },
   { name: "Entregas", href: "/admin/entregas", icon: Package, color: "from-amber-500 to-orange-500" },
+  { name: "Agenda", href: "/admin/agenda", icon: Calendar, color: "from-teal-500 to-emerald-500" },
   { name: "Insights IA", href: "/admin/insights", icon: Sparkles, color: "from-pink-500 to-rose-500" },
   { name: "Acessos", href: "/admin/acessos", icon: UserPlus, color: "from-cyan-500 to-blue-500" },
   { name: "Configurações", href: "/admin/configuracoes", icon: Settings, color: "from-slate-500 to-zinc-500" },

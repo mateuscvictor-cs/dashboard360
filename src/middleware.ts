@@ -1,8 +1,5 @@
-import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import { authConfig } from "./auth.config";
-
-const { auth } = NextAuth(authConfig);
+import type { NextRequest } from "next/server";
 
 type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
 
@@ -28,34 +25,34 @@ function canAccessRoute(role: UserRole, pathname: string): boolean {
   return false;
 }
 
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.includes(".")) {
     return NextResponse.next();
   }
 
-  const session = req.auth;
-  const isAuthenticated = !!session?.user;
+  const sessionToken = request.cookies.get("authjs.session-token")?.value || 
+                       request.cookies.get("__Secure-authjs.session-token")?.value;
+  
+  const isAuthenticated = !!sessionToken;
   const isPublic = isPublicRoute(pathname);
-  const userRole = (session?.user?.role as UserRole) || "CLIENT";
 
   if (!isAuthenticated && !isPublic) {
-    const loginUrl = new URL("/", req.url);
+    const loginUrl = new URL("/", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   if (isAuthenticated && (pathname === "/" || pathname === "/login")) {
-    return NextResponse.redirect(new URL(getRedirectUrl(userRole), req.url));
-  }
-
-  if (isAuthenticated && !isPublic && !canAccessRoute(userRole, pathname)) {
-    return NextResponse.redirect(new URL(getRedirectUrl(userRole), req.url));
+    const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
+    if (callbackUrl && !isPublicRoute(callbackUrl)) {
+      return NextResponse.redirect(new URL(callbackUrl, request.url));
+    }
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],

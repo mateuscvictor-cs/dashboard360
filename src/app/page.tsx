@@ -1,19 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+
+function getRedirectUrl(role: string | undefined): string {
+  switch (role) {
+    case "ADMIN": return "/admin";
+    case "CS_OWNER": return "/cs";
+    case "CLIENT": return "/cliente/dashboard";
+    default: return "/admin";
+  }
+}
 
 export default function LoginPage() {
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      window.location.href = getRedirectUrl(session.user.role);
+    }
+  }, [status, session]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -40,7 +56,7 @@ export default function LoginPage() {
       }
 
       if (result?.ok) {
-        window.location.href = "/admin";
+        window.location.reload();
       }
     } catch (err) {
       console.error("Login error:", err);

@@ -307,6 +307,8 @@ model CSOwner {
   requestedSurveys    Survey[]
   deliveryCompletions DeliveryCompletion[]
   uploadedDocuments   DeliveryDocument[]
+  calComConfig        CalComConfig?
+  calComBookings      CalComBooking[]
 
   @@map("cs_owners")
 }
@@ -394,6 +396,7 @@ model Company {
   surveys         Survey[]
   invites         Invite[]
   clientResources ClientResource[]
+  calComBookings  CalComBooking[]
 
   @@map("companies")
 }
@@ -511,10 +514,11 @@ model Delivery {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
 
-  surveys    Survey[]
-  completion DeliveryCompletion?
-  meetings   DeliveryMeeting[]
-  documents  DeliveryDocument[]
+  surveys        Survey[]
+  completion     DeliveryCompletion?
+  meetings       DeliveryMeeting[]
+  documents      DeliveryDocument[]
+  calComBookings CalComBooking[]
 
   @@map("deliveries")
 }
@@ -960,4 +964,59 @@ model ClientResource {
   createdById String?
 
   @@map("client_resources")
+}
+
+enum CalComBookingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+  NO_SHOW
+}
+
+enum CalComEventType {
+  ONBOARDING
+  DELIVERY
+  CHECKIN
+  GENERAL
+}
+
+model CalComConfig {
+  id                String   @id @default(cuid())
+  csOwnerId         String   @unique
+  csOwner           CSOwner  @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  calComUserId      Int?
+  calComUsername    String
+  defaultScheduleId Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("calcom_configs")
+}
+
+model CalComBooking {
+  id              String              @id @default(cuid())
+  calComBookingId Int                 @unique
+  calComUid       String              @unique
+  eventType       CalComEventType     @default(GENERAL)
+  eventTypeSlug   String
+  title           String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime
+  status          CalComBookingStatus @default(SCHEDULED)
+  meetingUrl      String?
+  csOwnerId       String
+  csOwner         CSOwner             @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  companyId       String?
+  company         Company?            @relation(fields: [companyId], references: [id])
+  deliveryId      String?
+  delivery        Delivery?           @relation(fields: [deliveryId], references: [id])
+  attendeeEmail   String
+  attendeeName    String
+  metadata        Json?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@map("calcom_bookings")
 }
