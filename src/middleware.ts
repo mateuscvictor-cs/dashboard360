@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { betterFetch } from "@better-fetch/fetch";
-import type { Session } from "@/lib/auth";
 
 type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
+
+type SessionData = {
+  session: {
+    id: string;
+    userId: string;
+  };
+  user: {
+    id: string;
+    email: string;
+    role: UserRole;
+  };
+};
 
 const PUBLIC_ROUTES = [
   "/",
@@ -61,28 +71,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  let session: Session | null = null;
+  let session: SessionData | null = null;
 
   try {
-    const cookies = request.headers.get("cookie") || "";
-    const response = await betterFetch<Session>(
-      "/api/auth/get-session",
-      {
-        baseURL: request.nextUrl.origin,
-        headers: {
-          cookie: cookies,
-        },
-        credentials: "include",
+    const cookieHeader = request.headers.get("cookie") || "";
+    
+    const response = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
+      method: "GET",
+      headers: {
+        "cookie": cookieHeader,
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.session) {
+        session = data;
       }
-    );
-    session = response.data;
+    }
   } catch {
     session = null;
   }
 
   const isAuthenticated = !!session;
   const isPublic = isPublicRoute(pathname);
-  const userRole = (session?.user as { role?: UserRole } | undefined)?.role || "CLIENT";
+  const userRole = session?.user?.role || "CLIENT";
 
   if (!isAuthenticated && !isPublic) {
     const loginUrl = new URL("/", request.url);
