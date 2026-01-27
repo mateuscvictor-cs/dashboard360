@@ -3,10 +3,10 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Zap, CheckCircle2, XCircle, Mail, ArrowLeft } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2, XCircle, Mail, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { authClient, sendVerificationEmail } from "@/lib/auth-client";
 
 function VerificarEmailContent() {
   const router = useRouter();
@@ -20,7 +20,7 @@ function VerificarEmailContent() {
   const email = searchParams.get("email");
 
   useEffect(() => {
-    if (token) {
+    if (token && email) {
       verifyEmail();
     } else if (email) {
       setStatus("resend");
@@ -31,19 +31,27 @@ function VerificarEmailContent() {
   }, [token, email]);
 
   const verifyEmail = async () => {
-    if (!token) return;
+    if (!token || !email) return;
 
     try {
-      await authClient.verifyEmail({
-        query: { token },
+      const response = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, email }),
       });
-      setStatus("success");
-      setTimeout(() => {
-        router.push("/");
-      }, 3000);
+
+      if (response.ok) {
+        setStatus("success");
+        setTimeout(() => {
+          router.push("/");
+        }, 3000);
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || "Erro na verificação");
+      }
     } catch {
       setStatus("error");
-      setError("Link expirado ou inválido. Solicite um novo email de verificação.");
+      setError("Link expirado ou inválido.");
     }
   };
 
@@ -52,11 +60,17 @@ function VerificarEmailContent() {
 
     setResendLoading(true);
     try {
-      await sendVerificationEmail({
-        email,
-        callbackURL: "/verificar-email",
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
-      setResendSuccess(true);
+
+      if (response.ok) {
+        setResendSuccess(true);
+      } else {
+        throw new Error("Erro ao reenviar");
+      }
     } catch {
       setError("Erro ao reenviar email. Tente novamente.");
     } finally {
@@ -113,9 +127,13 @@ function VerificarEmailContent() {
         <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-background/95 backdrop-blur-xl">
           <CardContent className="pt-8 pb-8 text-center space-y-4">
             <div className="flex justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary/25">
-                <Mail className="h-8 w-8 text-white" />
-              </div>
+              <Image
+                src="/logo-vanguardia.png"
+                alt="Vanguardia"
+                width={140}
+                height={36}
+                className="h-9 w-auto"
+              />
             </div>
             <div>
               <h2 className="text-xl font-semibold">Verifique seu email</h2>

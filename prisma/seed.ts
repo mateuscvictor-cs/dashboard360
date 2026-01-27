@@ -2,7 +2,11 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { hashPassword } from "better-auth/crypto";
+import bcrypt from "bcryptjs";
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
+}
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -52,14 +56,8 @@ async function main() {
       email: "admin@vanguardia.com",
       name: "Administrador",
       role: "ADMIN",
-      emailVerified: true,
-      accounts: {
-        create: {
-          accountId: "admin@vanguardia.com",
-          providerId: "credential",
-          password: adminPassword,
-        },
-      },
+      emailVerified: new Date(),
+      password: adminPassword,
     },
   });
   
@@ -107,14 +105,8 @@ async function main() {
           email: "maria@vanguardia.com",
           name: "Maria Oliveira",
           role: "CS_OWNER",
-          emailVerified: true,
-          accounts: {
-            create: {
-              accountId: "maria@vanguardia.com",
-              providerId: "credential",
-              password: csPassword,
-            },
-          },
+          emailVerified: new Date(),
+          password: csPassword,
         },
       },
     },
@@ -136,14 +128,8 @@ async function main() {
           email: "joao@vanguardia.com",
           name: "João Silva",
           role: "CS_OWNER",
-          emailVerified: true,
-          accounts: {
-            create: {
-              accountId: "joao@vanguardia.com",
-              providerId: "credential",
-              password: csPassword,
-            },
-          },
+          emailVerified: new Date(),
+          password: csPassword,
         },
       },
     },
@@ -165,14 +151,8 @@ async function main() {
           email: "ana@vanguardia.com",
           name: "Ana Santos",
           role: "CS_OWNER",
-          emailVerified: true,
-          accounts: {
-            create: {
-              accountId: "ana@vanguardia.com",
-              providerId: "credential",
-              password: csPassword,
-            },
-          },
+          emailVerified: new Date(),
+          password: csPassword,
         },
       },
     },
@@ -194,14 +174,8 @@ async function main() {
           email: "pedro@vanguardia.com",
           name: "Pedro Costa",
           role: "CS_OWNER",
-          emailVerified: true,
-          accounts: {
-            create: {
-              accountId: "pedro@vanguardia.com",
-              providerId: "credential",
-              password: csPassword,
-            },
-          },
+          emailVerified: new Date(),
+          password: csPassword,
         },
       },
     },
@@ -342,15 +316,9 @@ async function main() {
       email: "cliente@techcorp.com",
       name: "Carlos Mendes (Cliente)",
       role: "CLIENT",
-      emailVerified: true,
+      emailVerified: new Date(),
       companyId: company1.id,
-      accounts: {
-        create: {
-          accountId: "cliente@techcorp.com",
-          providerId: "credential",
-          password: clientPassword,
-        },
-      },
+      password: clientPassword,
     },
   });
   

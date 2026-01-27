@@ -22,7 +22,7 @@ export type CreateInviteData = {
 
 export type InviteWithRelations = Invite & {
   company: { id: string; name: string } | null;
-  invitedBy: { id: string; name: string; email: string };
+  invitedBy: { id: string; name: string | null; email: string };
 };
 
 export const inviteService = {
@@ -162,18 +162,10 @@ export const inviteService = {
           email: invite.email,
           name: userData.name,
           role,
-          emailVerified: true,
+          emailVerified: new Date(),
+          password: userData.passwordHash,
           image: userData.image || null,
           companyId: invite.type === "COMPANY_ADMIN" ? invite.companyId : null,
-        },
-      });
-
-      await tx.account.create({
-        data: {
-          userId: user.id,
-          accountId: user.id,
-          providerId: "credential",
-          password: userData.passwordHash,
         },
       });
 

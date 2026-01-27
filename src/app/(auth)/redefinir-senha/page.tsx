@@ -3,10 +3,10 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Lock, Zap, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import { Lock, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { resetPassword } from "@/lib/auth-client";
 
 function RedefinirSenhaContent() {
   const router = useRouter();
@@ -19,12 +19,13 @@ function RedefinirSenhaContent() {
   const [success, setSuccess] = useState(false);
 
   const token = searchParams.get("token");
+  const email = searchParams.get("email");
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !email) {
       setError("Token inválido ou expirado.");
     }
-  }, [token]);
+  }, [token, email]);
 
   const handleSubmit = async () => {
     if (!password || !confirmPassword) {
@@ -42,7 +43,7 @@ function RedefinirSenhaContent() {
       return;
     }
 
-    if (!token) {
+    if (!token || !email) {
       setError("Token inválido ou expirado");
       return;
     }
@@ -51,16 +52,24 @@ function RedefinirSenhaContent() {
     setError("");
 
     try {
-      await resetPassword({
-        newPassword: password,
-        token,
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, email, password }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao redefinir senha");
+      }
+
       setSuccess(true);
       setTimeout(() => {
         router.push("/");
       }, 3000);
-    } catch {
-      setError("Erro ao redefinir senha. O link pode ter expirado.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao redefinir senha. O link pode ter expirado.");
     } finally {
       setLoading(false);
     }
@@ -97,9 +106,13 @@ function RedefinirSenhaContent() {
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-background/95 backdrop-blur-xl">
         <CardHeader className="text-center space-y-4 pb-6">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary/25">
-              <Zap className="h-7 w-7 text-white" />
-            </div>
+            <Image
+              src="/logo-vanguardia.png"
+              alt="Vanguardia"
+              width={140}
+              height={36}
+              className="h-9 w-auto"
+            />
           </div>
           <div>
             <CardTitle className="text-xl font-bold">Redefinir senha</CardTitle>
@@ -162,7 +175,7 @@ function RedefinirSenhaContent() {
           <div className="space-y-3">
             <Button
               onClick={handleSubmit}
-              disabled={loading || !token}
+              disabled={loading || !token || !email}
               className="w-full h-11 rounded-xl bg-gradient-brand text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:brightness-110 transition-all"
             >
               {loading ? (

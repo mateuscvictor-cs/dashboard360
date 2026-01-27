@@ -1,31 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { signIn, authClient } from "@/lib/auth-client";
-
-type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
-
-function getRedirectUrl(role: UserRole): string {
-  switch (role) {
-    case "ADMIN":
-      return "/admin";
-    case "CS_OWNER":
-      return "/cs";
-    case "CLIENT":
-      return "/cliente/dashboard";
-    default:
-      return "/";
-  }
-}
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,58 +16,34 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    console.log("1. handleLogin iniciado");
-    
     if (!email || !password) {
       setError("Preencha todos os campos");
       return;
     }
 
-    console.log("2. Campos preenchidos, iniciando login...");
     setLoading(true);
     setError("");
 
     try {
-      console.log("3. Chamando signIn.email...");
-      const result = await signIn.email({
+      const result = await signIn("credentials", {
         email,
         password,
+        redirect: false,
       });
-      console.log("4. Resultado do signIn:", result);
 
-      if (result.error) {
-        console.log("5. Erro no resultado:", result.error);
-        if (result.error.message?.includes("verify")) {
-          setError("Email não verificado. Verifique sua caixa de entrada.");
-        } else if (result.error.message?.includes("credentials") || result.error.message?.includes("Invalid")) {
-          setError("Email ou senha incorretos.");
-        } else {
-          setError(result.error.message || "Erro ao fazer login.");
-        }
+      console.log("Login result:", result);
+
+      if (result?.error) {
+        setError("Email ou senha incorretos.");
         setLoading(false);
         return;
       }
 
-      if (result.data) {
-        console.log("6. Login bem sucedido, buscando sessão...");
-        
-        const sessionResult = await authClient.getSession();
-        console.log("7. Sessão:", sessionResult);
-        
-        if (sessionResult.data?.user) {
-          const user = sessionResult.data.user as { role?: UserRole };
-          const role = user.role || "CLIENT";
-          const redirectUrl = getRedirectUrl(role);
-          console.log("8. Redirecionando para:", redirectUrl);
-          window.location.href = redirectUrl;
-        } else {
-          console.log("8. Sessão não encontrada, forçando redirect...");
-          window.location.href = "/admin";
-        }
-        return;
+      if (result?.ok) {
+        window.location.href = "/admin";
       }
     } catch (err) {
-      console.error("ERRO CATCH:", err);
+      console.error("Login error:", err);
       setError("Erro ao conectar. Tente novamente.");
       setLoading(false);
     }

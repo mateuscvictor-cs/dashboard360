@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { hashPassword, verifyPassword } from "better-auth/crypto";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 export async function POST(request: Request) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -25,21 +22,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A nova senha deve ter pelo menos 6 caracteres" }, { status: 400 });
     }
 
-    const account = await prisma.account.findFirst({
-      where: {
-        userId: session.user.id,
-        providerId: "credential",
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { password: true },
     });
 
-    if (!account || !account.password) {
-      return NextResponse.json({ error: "Conta não encontrada" }, { status: 404 });
+    if (!user?.password) {
+      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    const isValid = await verifyPassword({
-      password: currentPassword,
-      hash: account.password,
-    });
+    const isValid = await verifyPassword(currentPassword, user.password);
 
     if (!isValid) {
       return NextResponse.json({ error: "Senha atual incorreta" }, { status: 400 });
@@ -47,8 +39,8 @@ export async function POST(request: Request) {
 
     const hashedPassword = await hashPassword(newPassword);
 
-    await prisma.account.update({
-      where: { id: account.id },
+    await prisma.user.update({
+      where: { id: session.user.id },
       data: { password: hashedPassword },
     });
 

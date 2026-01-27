@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Zap, ArrowLeft, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
+import { Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { requestPasswordReset } from "@/lib/auth-client";
 
 export default function EsqueciSenhaPage() {
   const [email, setEmail] = useState("");
@@ -23,10 +23,16 @@ export default function EsqueciSenhaPage() {
     setError("");
 
     try {
-      await requestPasswordReset({
-        email,
-        redirectTo: "/redefinir-senha",
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
+
+      if (!response.ok) {
+        throw new Error("Erro ao enviar email");
+      }
+
       setSuccess(true);
     } catch {
       setError("Erro ao enviar email. Tente novamente.");
@@ -73,9 +79,13 @@ export default function EsqueciSenhaPage() {
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-background/95 backdrop-blur-xl">
         <CardHeader className="text-center space-y-4 pb-6">
           <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-primary/25">
-              <Zap className="h-7 w-7 text-white" />
-            </div>
+            <Image
+              src="/logo-vanguardia.png"
+              alt="Vanguardia"
+              width={140}
+              height={36}
+              className="h-9 w-auto"
+            />
           </div>
           <div>
             <CardTitle className="text-xl font-bold">Esqueceu sua senha?</CardTitle>
