@@ -3,16 +3,15 @@ import type { NextRequest } from "next/server";
 
 type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
 
-type SessionData = {
-  session: {
-    id: string;
-    userId: string;
-  };
-  user: {
-    id: string;
-    email: string;
-    role: UserRole;
-  };
+type SessionUser = {
+  name: string;
+  email: string;
+  role: UserRole;
+};
+
+type SessionPayload = {
+  session: unknown;
+  user: SessionUser;
 };
 
 const PUBLIC_ROUTES = [
@@ -60,6 +59,20 @@ function getRedirectUrl(role: UserRole): string {
   }
 }
 
+function parseSessionFromCookie(cookieValue: string): SessionPayload | null {
+  try {
+    const decoded = decodeURIComponent(cookieValue);
+    const jsonStr = atob(decoded.split(".")[0]);
+    const data = JSON.parse(jsonStr);
+    if (data && data.user) {
+      return data as SessionPayload;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -71,26 +84,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  let session: SessionData | null = null;
-
-  try {
-    const cookieHeader = request.headers.get("cookie") || "";
-    
-    const response = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
-      method: "GET",
-      headers: {
-        "cookie": cookieHeader,
-      },
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.session) {
-        session = data;
-      }
-    }
-  } catch {
-    session = null;
+  let session: SessionPayload | null = null;
+  
+  const sessionDataCookie = request.cookies.get("__Secure-better-auth.session_data")?.value 
+    || request.cookies.get("better-auth.session_data")?.value;
+  
+  if (sessionDataCookie) {
+    session = parseSessionFromCookie(sessionDataCookie);
   }
 
   const isAuthenticated = !!session;
