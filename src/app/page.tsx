@@ -123,10 +123,12 @@ export default function LoginPage() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Email</label>
+              <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  id="email"
+                  name="email"
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
@@ -138,7 +140,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">Senha</label>
+                <label htmlFor="password" className="text-sm font-medium text-foreground">Senha</label>
                 <Link 
                   href="/esqueci-senha" 
                   className="text-xs text-primary hover:underline"
@@ -149,6 +151,8 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
@@ -164,6 +168,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Mostrar senha"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -173,6 +178,7 @@ export default function LoginPage() {
 
           <div className="space-y-3">
             <Button
+              type="button"
               onClick={handleLogin}
               disabled={loading}
               className="w-full h-11 rounded-xl bg-gradient-brand text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:brightness-110 transition-all"
