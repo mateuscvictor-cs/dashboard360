@@ -52,8 +52,8 @@ export default function LoginPage() {
 
       if (result.data) {
         console.log("6. Login bem sucedido, redirecionando...");
-        router.refresh();
-        router.push("/admin");
+        window.location.replace("/admin");
+        return;
       }
     } catch (err) {
       console.error("ERRO CATCH:", err);
