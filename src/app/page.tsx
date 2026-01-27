@@ -52,9 +52,8 @@ export default function LoginPage() {
 
       if (result.data) {
         console.log("6. Login bem sucedido, redirecionando...");
-        setTimeout(() => {
-          window.location.href = "/admin";
-        }, 100);
+        router.refresh();
+        router.push("/admin");
       }
     } catch (err) {
       console.error("ERRO CATCH:", err);
