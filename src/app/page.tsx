@@ -7,7 +7,22 @@ import Image from "next/image";
 import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { signIn } from "@/lib/auth-client";
+import { signIn, authClient } from "@/lib/auth-client";
+
+type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
+
+function getRedirectUrl(role: UserRole): string {
+  switch (role) {
+    case "ADMIN":
+      return "/admin";
+    case "CS_OWNER":
+      return "/cs";
+    case "CLIENT":
+      return "/cliente/dashboard";
+    default:
+      return "/";
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,8 +66,21 @@ export default function LoginPage() {
       }
 
       if (result.data) {
-        console.log("6. Login bem sucedido, redirecionando...");
-        window.location.replace("/admin");
+        console.log("6. Login bem sucedido, buscando sessão...");
+        
+        const sessionResult = await authClient.getSession();
+        console.log("7. Sessão:", sessionResult);
+        
+        if (sessionResult.data?.user) {
+          const user = sessionResult.data.user as { role?: UserRole };
+          const role = user.role || "CLIENT";
+          const redirectUrl = getRedirectUrl(role);
+          console.log("8. Redirecionando para:", redirectUrl);
+          window.location.href = redirectUrl;
+        } else {
+          console.log("8. Sessão não encontrada, forçando redirect...");
+          window.location.href = "/admin";
+        }
         return;
       }
     } catch (err) {
