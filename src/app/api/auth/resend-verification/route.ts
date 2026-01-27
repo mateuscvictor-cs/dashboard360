@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/verificar-email?token=${token}&email=${encodeURIComponent(email)}`;
+    const verifyUrl = `${process.env.AUTH_URL || "http://localhost:3000"}/verificar-email?token=${token}&email=${encodeURIComponent(email)}`;
     
     await emailService.sendVerification(email, verifyUrl);
 

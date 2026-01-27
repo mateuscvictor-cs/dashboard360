@@ -8,7 +8,7 @@ apiInstance.setApiKey(
 
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || "noreply@vanguardia.com";
 const SENDER_NAME = process.env.BREVO_SENDER_NAME || "Vanguardia 360";
-const APP_URL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const APP_URL = process.env.AUTH_URL || "http://localhost:3000";
 
 type InviteType = "COMPANY_ADMIN" | "MEMBER_ADMIN" | "MEMBER_CS";
 

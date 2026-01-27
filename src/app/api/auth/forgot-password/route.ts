@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/redefinir-senha?token=${token}&email=${encodeURIComponent(email)}`;
+    const resetUrl = `${process.env.AUTH_URL || "http://localhost:3000"}/redefinir-senha?token=${token}&email=${encodeURIComponent(email)}`;
     
     await emailService.sendPasswordReset(email, resetUrl);
 
