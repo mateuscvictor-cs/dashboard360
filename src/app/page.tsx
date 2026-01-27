@@ -52,7 +52,9 @@ export default function LoginPage() {
 
       if (result.data) {
         console.log("6. Login bem sucedido, redirecionando...");
-        window.location.href = "/admin";
+        setTimeout(() => {
+          window.location.href = "/admin";
+        }, 100);
       }
     } catch (err) {
       console.error("ERRO CATCH:", err);

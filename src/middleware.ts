@@ -64,13 +64,15 @@ export async function middleware(request: NextRequest) {
   let session: Session | null = null;
 
   try {
+    const cookies = request.headers.get("cookie") || "";
     const response = await betterFetch<Session>(
       "/api/auth/get-session",
       {
         baseURL: request.nextUrl.origin,
         headers: {
-          cookie: request.headers.get("cookie") || "",
+          cookie: cookies,
         },
+        credentials: "include",
       }
     );
     session = response.data;
