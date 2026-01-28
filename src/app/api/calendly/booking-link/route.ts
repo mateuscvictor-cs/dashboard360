@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
       }
       csOwnerId = csOwner.id;
     } else if (session.user.role === "CLIENT") {
-      const client = await prisma.client.findUnique({
+      const user = await prisma.user.findUnique({
         where: { email: session.user.email! },
         include: { company: { include: { csOwner: true } } },
       });
-      if (!client?.company?.csOwner) {
+      if (!user?.company?.csOwner) {
         return NextResponse.json({ error: "CS Owner não encontrado para este cliente" }, { status: 404 });
       }
-      csOwnerId = client.company.csOwner.id;
+      csOwnerId = user.company.csOwner.id;
     } else {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }

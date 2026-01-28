@@ -28,15 +28,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (session.user.role === "CLIENT") {
-      const client = await prisma.client.findUnique({
+      const user = await prisma.user.findUnique({
         where: { email: session.user.email! },
         include: { company: true },
       });
-      if (!client?.companyId) {
+      if (!user?.companyId) {
         return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
       }
 
-      const bookings = await calendlyService.getBookingsByCompany(client.companyId);
+      const bookings = await calendlyService.getBookingsByCompany(user.companyId);
       return NextResponse.json(limit ? bookings.slice(0, parseInt(limit)) : bookings);
     }
 
