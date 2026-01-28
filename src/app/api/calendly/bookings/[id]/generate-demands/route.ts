@@ -156,7 +156,7 @@ Retorne APENAS um array JSON válido, sem texto adicional. Se não houver demand
       await prisma.timelineEvent.create({
         data: {
           companyId: booking.companyId,
-          type: "NOTE",
+          type: "MILESTONE",
           title: "Demandas geradas por IA",
           description: `${createdDemands.length} demanda(s) criada(s) a partir da reunião "${booking.title}"`,
           date: new Date(),
