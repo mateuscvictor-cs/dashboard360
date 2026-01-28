@@ -4,6 +4,7 @@ import { FileText, ExternalLink, Download, Video, BookOpen, HelpCircle } from "l
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ClienteHeader } from "@/components/layout/cliente-header";
 
 const resources = [
   {
@@ -33,14 +34,7 @@ const resources = [
 export default function DocumentacaoPage() {
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <h1 className="text-2xl font-bold">Documentação</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Recursos e materiais para ajudar você a aproveitar ao máximo a plataforma
-          </p>
-        </div>
-      </div>
+      <ClienteHeader title="Documentação" subtitle="Recursos e materiais para ajudar você" />
 
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl space-y-6">

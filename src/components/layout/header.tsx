@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search, Filter, Command, Sparkles } from "lucide-react";
+import { Search, Filter, Command, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NotificationBell } from "@/components/notifications";
 
 interface HeaderProps {
   title: string;
@@ -12,7 +13,7 @@ interface HeaderProps {
   backLink?: string;
 }
 
-export function Header({ title, subtitle, showFilters = true, alertCount = 0 }: HeaderProps) {
+export function Header({ title, subtitle, showFilters = true }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-6">
@@ -51,17 +52,7 @@ export function Header({ title, subtitle, showFilters = true, alertCount = 0 }: 
             <Sparkles className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
           </Button>
 
-          <Button variant="ghost" size="icon" className="relative rounded-xl">
-            <Bell className="h-5 w-5 text-muted-foreground" />
-            {alertCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger opacity-40" />
-                <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
-                  {alertCount > 9 ? "9+" : alertCount}
-                </span>
-              </span>
-            )}
-          </Button>
+          <NotificationBell />
         </div>
       </div>
     </header>

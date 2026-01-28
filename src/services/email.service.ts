@@ -156,6 +156,59 @@ export const emailService = {
     }
   },
 
+  async sendMeetingInvite(data: {
+    to: string;
+    attendeeName: string;
+    meetingTitle: string;
+    meetingDate: Date;
+    csOwnerName: string;
+    confirmationLink: string;
+  }): Promise<boolean> {
+    const date = data.meetingDate.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+    const time = data.meetingDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+    if (!process.env.BREVO_API_KEY) {
+      console.log(`[DEV] Meeting invite for ${data.to}: ${data.confirmationLink}`);
+      return true;
+    }
+
+    try {
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      sendSmtpEmail.sender = { email: SENDER_EMAIL, name: SENDER_NAME };
+      sendSmtpEmail.to = [{ email: data.to }];
+      sendSmtpEmail.subject = `Confirme sua reunião: ${data.meetingTitle}`;
+      sendSmtpEmail.htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Vanguardia 360</h1>
+          </div>
+          <div style="padding: 32px; background: #ffffff;">
+            <h2 style="color: #1f2937; margin-bottom: 16px;">Você foi convidado para uma reunião!</h2>
+            <p style="color: #4b5563;">Olá ${data.attendeeName},</p>
+            <p style="color: #4b5563;">Você foi convidado para participar de uma reunião. Por favor, confirme sua presença clicando no botão abaixo.</p>
+            <div style="background: #f3f4f6; border-radius: 12px; padding: 24px; margin: 24px 0;">
+              <p style="color: #1f2937; font-weight: 600; margin: 0 0 8px 0;">${data.meetingTitle}</p>
+              <p style="color: #6b7280; margin: 0 0 4px 0;">📅 ${date}</p>
+              <p style="color: #6b7280; margin: 0 0 4px 0;">🕐 ${time}</p>
+              <p style="color: #6b7280; margin: 0;">👤 ${data.csOwnerName}</p>
+            </div>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${data.confirmationLink}" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                Confirmar Reunião
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 14px;">Ao clicar, você será redirecionado para confirmar os detalhes e finalizar o agendamento.</p>
+          </div>
+        </div>
+      `;
+      await apiInstance.sendTransacEmail(sendSmtpEmail);
+      return true;
+    } catch (error) {
+      console.error("Failed to send meeting invite:", error);
+      return false;
+    }
+  },
+
   async sendMeetingConfirmation(data: {
     to: string;
     attendeeName: string;
@@ -341,6 +394,104 @@ export const emailService = {
       return true;
     } catch (error) {
       console.error("Failed to send meeting rescheduled:", error);
+      return false;
+    }
+  },
+
+  async sendNotificationEmail(
+    to: string,
+    title: string,
+    message: string,
+    link?: string,
+    recipientName?: string
+  ): Promise<boolean> {
+    if (!process.env.BREVO_API_KEY) {
+      console.log(`[DEV] Notification email for ${to}: ${title} - ${message}`);
+      return true;
+    }
+
+    try {
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      sendSmtpEmail.sender = { email: SENDER_EMAIL, name: SENDER_NAME };
+      sendSmtpEmail.to = [{ email: to }];
+      sendSmtpEmail.subject = `${title} - Vanguardia 360`;
+      sendSmtpEmail.htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px 40px; text-align: center;">
+                      <img src="${APP_URL}/logo-vanguardia-white.png" alt="Vanguardia 360" height="32" style="height: 32px; width: auto;" onerror="this.style.display='none'">
+                      <h1 style="color: white; margin: 12px 0 0 0; font-size: 20px; font-weight: 600;">Vanguardia 360</h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding: 40px;">
+                      ${recipientName ? `<p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">Olá, ${recipientName}!</p>` : ""}
+                      <h2 style="color: #111827; margin: 0 0 16px 0; font-size: 22px; font-weight: 600; line-height: 1.3;">${title}</h2>
+                      <p style="color: #4b5563; margin: 0; font-size: 15px; line-height: 1.7;">${message}</p>
+                      
+                      ${link ? `
+                        <div style="text-align: center; margin: 32px 0;">
+                          <a href="${APP_URL}${link}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+                            Ver Detalhes
+                          </a>
+                        </div>
+                      ` : ""}
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding: 24px 40px; background-color: #fafafa; border-top: 1px solid #e5e7eb;">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0 0 12px 0; text-align: center;">
+                        Você está recebendo este email porque optou por receber notificações da Vanguardia 360.
+                      </p>
+                      <p style="text-align: center; margin: 0;">
+                        <a href="${APP_URL}/cliente/configuracoes" style="color: #6366f1; font-size: 12px; text-decoration: none;">
+                          Gerenciar preferências de notificação
+                        </a>
+                        <span style="color: #d1d5db; margin: 0 8px;">|</span>
+                        <a href="${APP_URL}/cliente/notificacoes" style="color: #6366f1; font-size: 12px; text-decoration: none;">
+                          Ver todas as notificações
+                        </a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Legal -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px;">
+                  <tr>
+                    <td style="padding: 24px 40px; text-align: center;">
+                      <p style="color: #9ca3af; font-size: 11px; margin: 0; line-height: 1.5;">
+                        © ${new Date().getFullYear()} Vanguardia 360. Todos os direitos reservados.<br>
+                        Este email foi enviado automaticamente, por favor não responda.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `;
+      await apiInstance.sendTransacEmail(sendSmtpEmail);
+      return true;
+    } catch (error) {
+      console.error("Failed to send notification email:", error);
       return false;
     }
   },

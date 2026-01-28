@@ -206,6 +206,51 @@ enum DocumentType {
   OTHER
 }
 
+enum DependencyType {
+  ACCESS
+  DOCUMENT
+  APPROVAL
+  INFORMATION
+}
+
+enum DependencyStatus {
+  PENDING
+  PROVIDED
+  OVERDUE
+  NOT_NEEDED
+}
+
+enum CommentType {
+  COMMENT
+  CHANGE_REQUEST
+  APPROVAL
+  REJECTION
+  RESPONSE
+}
+
+enum ClientApprovalStatus {
+  PENDING_APPROVAL
+  APPROVED
+  CHANGES_REQUESTED
+}
+
+enum NotificationType {
+  DEPENDENCY_ADDED
+  DEPENDENCY_OVERDUE
+  DELIVERY_PROGRESS
+  DELIVERY_COMPLETED
+  COMMENT_RESPONSE
+  MEETING_SCHEDULED
+  SURVEY_PENDING
+  DEPENDENCY_PROVIDED
+  CLIENT_COMMENT
+  DELIVERY_APPROVED
+  SURVEY_COMPLETED
+  LOW_SCORE_ALERT
+  MANUAL_MESSAGE
+  BROADCAST
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -217,17 +262,29 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  notifyInApp         Boolean @default(true)
+  notifyEmail         Boolean @default(true)
+  notifyDeliveries    Boolean @default(true)
+  notifyProgress      Boolean @default(true)
+  notifyDeadlines     Boolean @default(true)
+  notifyWeeklySummary Boolean @default(false)
+
   csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id])
   csOwnerId String?  @unique
 
   company   Company? @relation(fields: [companyId], references: [id])
   companyId String?
 
-  sessions         Session[]
-  accounts         Account[]
-  surveyResponses  SurveyResponse[]
-  sentInvites      Invite[]
-  createdResources ClientResource[]
+  sessions              Session[]
+  accounts              Account[]
+  surveyResponses       SurveyResponse[]
+  sentInvites           Invite[]
+  createdResources      ClientResource[]
+  integrations          UserIntegration[]
+  approvedDeliveries    Delivery[]        @relation("DeliveryApprovedBy")
+  deliveryComments      DeliveryComment[]
+  receivedNotifications Notification[]    @relation("NotificationRecipient")
+  sentNotifications     Notification[]    @relation("NotificationSender")
 
   @@map("users")
 }
@@ -307,8 +364,8 @@ model CSOwner {
   requestedSurveys    Survey[]
   deliveryCompletions DeliveryCompletion[]
   uploadedDocuments   DeliveryDocument[]
-  calComConfig        CalComConfig?
-  calComBookings      CalComBooking[]
+  calendlyConfig      CalendlyConfig?
+  calendlyBookings    CalendlyBooking[]
 
   @@map("cs_owners")
 }
@@ -377,26 +434,27 @@ model Company {
   squad   Squad?  @relation(fields: [squadId], references: [id])
   squadId String?
 
-  users           User[]
-  contacts        Contact[]
-  timelineEvents  TimelineEvent[]
-  deliveries      Delivery[]
-  usageDataPoints UsageDataPoint[]
-  activities      TeamActivity[]
-  pendings        Pending[]
-  demands         Demand[]
-  whatsappGroups  WhatsAppGroup[]
-  priorityItems   PriorityItem[]
-  aiInsights      AIInsight[]
-  alerts          Alert[]
-  workshops       Workshop[]
-  hotseats        Hotseat[]
-  ipcs            IPC[]
-  meetings        Meeting[]
-  surveys         Survey[]
-  invites         Invite[]
-  clientResources ClientResource[]
-  calComBookings  CalComBooking[]
+  users            User[]
+  contacts         Contact[]
+  timelineEvents   TimelineEvent[]
+  deliveries       Delivery[]
+  usageDataPoints  UsageDataPoint[]
+  activities       TeamActivity[]
+  pendings         Pending[]
+  demands          Demand[]
+  whatsappGroups   WhatsAppGroup[]
+  priorityItems    PriorityItem[]
+  aiInsights       AIInsight[]
+  alerts           Alert[]
+  workshops        Workshop[]
+  hotseats         Hotseat[]
+  ipcs             IPC[]
+  meetings         Meeting[]
+  surveys          Survey[]
+  invites          Invite[]
+  clientResources  ClientResource[]
+  calendlyBookings CalendlyBooking[]
+  notifications    Notification[]
 
   @@map("companies")
 }
@@ -498,27 +556,36 @@ model TimelineEvent {
 }
 
 model Delivery {
-  id          String         @id @default(cuid())
-  title       String
-  description String?
-  status      DeliveryStatus @default(PENDING)
-  progress    Int            @default(0)
-  dueDate     DateTime?
-  assignee    String?
-  blockers    String[]       @default([])
-  impact      Priority       @default(MEDIUM)
-  cadence     Cadence?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id                   String               @id @default(cuid())
+  title                String
+  description          String?
+  impactDescription    String?
+  status               DeliveryStatus       @default(PENDING)
+  progress             Int                  @default(0)
+  dueDate              DateTime?
+  assignee             String?
+  blockers             String[]             @default([])
+  impact               Priority             @default(MEDIUM)
+  cadence              Cadence?
+  clientApprovalStatus ClientApprovalStatus?
+  clientApprovedAt     DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
 
-  surveys        Survey[]
-  completion     DeliveryCompletion?
-  meetings       DeliveryMeeting[]
-  documents      DeliveryDocument[]
-  calComBookings CalComBooking[]
+  clientApprovedBy   User?   @relation("DeliveryApprovedBy", fields: [clientApprovedById], references: [id])
+  clientApprovedById String?
+
+  surveys          Survey[]
+  completion       DeliveryCompletion?
+  meetings         DeliveryMeeting[]
+  documents        DeliveryDocument[]
+  calendlyBookings CalendlyBooking[]
+  dependencies     DeliveryDependency[]
+  comments         DeliveryComment[]
+  notifications    Notification[]
 
   @@map("deliveries")
 }
@@ -905,6 +972,39 @@ model DeliveryDocument {
   @@map("delivery_documents")
 }
 
+model DeliveryDependency {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?
+  type         DependencyType
+  status       DependencyStatus @default(PENDING)
+  dueDate      DateTime?
+  providedAt   DateTime?
+  providedNote String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId String
+
+  @@map("delivery_dependencies")
+}
+
+model DeliveryComment {
+  id        String      @id @default(cuid())
+  content   String
+  type      CommentType @default(COMMENT)
+  createdAt DateTime    @default(now())
+
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  deliveryId String
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  @@map("delivery_comments")
+}
+
 enum InviteType {
   COMPANY_ADMIN
   MEMBER_ADMIN
@@ -966,7 +1066,8 @@ model ClientResource {
   @@map("client_resources")
 }
 
-enum CalComBookingStatus {
+enum CalendlyBookingStatus {
+  PENDING
   SCHEDULED
   COMPLETED
   CANCELLED
@@ -974,49 +1075,122 @@ enum CalComBookingStatus {
   NO_SHOW
 }
 
-enum CalComEventType {
+enum CalendlyEventType {
   ONBOARDING
   DELIVERY
   CHECKIN
   GENERAL
 }
 
-model CalComConfig {
-  id                String   @id @default(cuid())
-  csOwnerId         String   @unique
-  csOwner           CSOwner  @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
-  calComUserId      Int?
-  calComUsername    String
-  defaultScheduleId Int?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model CalendlyConfig {
+  id                  String   @id @default(cuid())
+  csOwnerId           String   @unique
+  csOwner             CSOwner  @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  calendlyUserUri     String?
+  calendlyUsername    String
+  defaultEventTypeUri String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  @@map("calcom_configs")
+  @@map("calendly_configs")
 }
 
-model CalComBooking {
-  id              String              @id @default(cuid())
-  calComBookingId Int                 @unique
-  calComUid       String              @unique
-  eventType       CalComEventType     @default(GENERAL)
-  eventTypeSlug   String
-  title           String
-  description     String?
-  startTime       DateTime
-  endTime         DateTime
-  status          CalComBookingStatus @default(SCHEDULED)
-  meetingUrl      String?
-  csOwnerId       String
-  csOwner         CSOwner             @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
-  companyId       String?
-  company         Company?            @relation(fields: [companyId], references: [id])
-  deliveryId      String?
-  delivery        Delivery?           @relation(fields: [deliveryId], references: [id])
-  attendeeEmail   String
-  attendeeName    String
-  metadata        Json?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+model CalendlyBooking {
+  id                 String                @id @default(cuid())
+  calendlyEventUri   String                @unique
+  calendlyEventUuid  String                @unique
+  eventType          CalendlyEventType     @default(GENERAL)
+  eventTypeSlug      String
+  title              String
+  description        String?
+  startTime          DateTime
+  endTime            DateTime
+  status             CalendlyBookingStatus @default(SCHEDULED)
+  meetingUrl         String?
+  csOwnerId          String
+  csOwner            CSOwner               @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  companyId          String?
+  company            Company?              @relation(fields: [companyId], references: [id])
+  deliveryId         String?
+  delivery           Delivery?             @relation(fields: [deliveryId], references: [id])
+  attendeeEmail      String
+  attendeeName       String
+  metadata           Json?
+  notes              String?
+  fathomUrl          String?
+  fathomRecordingId  String?
+  transcript         String?               @db.Text
+  summary            String?               @db.Text
+  actionItems        Json?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
 
-  @@map("calcom_bookings")
+  @@map("calendly_bookings")
+}
+
+model UserIntegration {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     String
+  encryptedKey String
+  keyIv        String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("user_integrations")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  emailSent Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  recipient   User   @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId String
+
+  sender   User?   @relation("NotificationSender", fields: [senderId], references: [id])
+  senderId String?
+
+  delivery   Delivery? @relation(fields: [deliveryId], references: [id])
+  deliveryId String?
+
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  @@index([recipientId, isRead])
+  @@index([recipientId, createdAt])
+  @@map("notifications")
+}
+
+enum EmailTemplateType {
+  NOTIFICATION
+  INVITE
+  WELCOME
+  PASSWORD_RESET
+  SURVEY_REQUEST
+  DELIVERY_COMPLETED
+  DEPENDENCY_REMINDER
+  WEEKLY_SUMMARY
+}
+
+model EmailTemplate {
+  id          String            @id @default(cuid())
+  type        EmailTemplateType @unique
+  name        String
+  subject     String
+  htmlContent String            @db.Text
+  variables   String[]
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("email_templates")
 }

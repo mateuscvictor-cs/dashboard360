@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requireRole, getSession } from "@/lib/auth-server"
 import { surveyService } from "@/services/survey.service"
 import { prisma } from "@/lib/db"
+import { notificationService } from "@/services/notification.service"
 
 export async function POST(
   request: Request,
@@ -23,7 +24,15 @@ export async function POST(
 
     const delivery = await prisma.delivery.findUnique({
       where: { id },
-      include: { completion: true },
+      include: {
+        completion: true,
+        company: {
+          include: {
+            users: true,
+            csOwner: { include: { user: true } },
+          },
+        },
+      },
     })
 
     if (!delivery) {
@@ -74,6 +83,8 @@ export async function POST(
       completedById,
       feedback: body.feedback.trim(),
     })
+
+    notificationService.notifyDeliveryCompleted(delivery as never).catch(console.error)
 
     return NextResponse.json(result, { status: 200 })
   } catch (error) {

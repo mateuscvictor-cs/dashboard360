@@ -14,6 +14,7 @@ import {
   LogOut,
   Package,
   Calendar,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Agenda", href: "/cs/agenda", icon: Calendar, color: "from-pink-500 to-rose-500" },
   { name: "Squads", href: "/cs/squads", icon: Users, color: "from-violet-500 to-purple-500" },
   { name: "Tarefas", href: "/cs/tarefas", icon: ClipboardList, color: "from-emerald-500 to-teal-500" },
+  { name: "Notificações", href: "/cs/notificacoes", icon: Bell, color: "from-rose-500 to-pink-500" },
   { name: "Configurações", href: "/cs/configuracoes", icon: Settings, color: "from-slate-500 to-zinc-500" },
 ];
 

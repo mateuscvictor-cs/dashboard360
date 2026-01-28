@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,14 @@ import {
   AlertCircle,
   Users,
   Filter,
+  Search,
+  X,
+  UserPlus,
+  Mail,
+  FileText,
+  MessageSquare,
 } from "lucide-react";
+import Link from "next/link";
 
 type Booking = {
   id: string;
@@ -39,10 +47,14 @@ type Booking = {
   company?: { id: string; name: string };
   delivery?: { id: string; title: string };
   csOwner?: { id: string; name: string; avatar?: string };
+  notes?: string;
+  fathomUrl?: string;
+  transcript?: string;
 };
 
 type EventType = {
-  id: number;
+  id: string;
+  uri: string;
   slug: string;
   title: string;
   lengthInMinutes: number;
@@ -51,15 +63,25 @@ type EventType = {
 type Company = {
   id: string;
   name: string;
+  logo?: string;
+  csOwner?: { id: string; name: string };
 };
 
-type CSOwner = {
+type UserType = {
   id: string;
   name: string;
+  email: string;
+  role: string;
 };
 
 type Slot = {
   time: string;
+  schedulingUrl?: string;
+};
+
+type Invitee = {
+  name: string;
+  email: string;
 };
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -68,6 +90,22 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   CHECKIN: "Check-in",
   GENERAL: "Geral",
 };
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 function NewBookingDialog({
   open,
@@ -79,63 +117,113 @@ function NewBookingDialog({
   onSuccess: () => void;
 }) {
   const [step, setStep] = useState(1);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [slots, setSlots] = useState<Record<string, Slot[]>>({});
   const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
+  const [loadingEventTypes, setLoadingEventTypes] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
+  const [hostSearch, setHostSearch] = useState("");
+  const [hostResults, setHostResults] = useState<UserType[]>([]);
+  const [hostLoading, setHostLoading] = useState(false);
+  const [selectedHost, setSelectedHost] = useState<UserType | null>(null);
+
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyResults, setCompanyResults] = useState<Company[]>([]);
+  const [companyLoading, setCompanyLoading] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+
   const [selectedEventType, setSelectedEventType] = useState<EventType | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [selectedSchedulingUrl, setSelectedSchedulingUrl] = useState("");
+
   const [attendeeName, setAttendeeName] = useState("");
   const [attendeeEmail, setAttendeeEmail] = useState("");
+  const [additionalInvitees, setAdditionalInvitees] = useState<Invitee[]>([]);
+  const [newInviteeName, setNewInviteeName] = useState("");
+  const [newInviteeEmail, setNewInviteeEmail] = useState("");
+
+  const [searchingNext, setSearchingNext] = useState(false);
+
+  const debouncedHostSearch = useDebounce(hostSearch, 300);
+  const debouncedCompanySearch = useDebounce(companySearch, 300);
 
   useEffect(() => {
     if (open) {
-      setLoadingData(true);
-      Promise.all([loadCompanies(), loadEventTypes()]).finally(() => {
-        setLoadingData(false);
-      });
+      loadEventTypes();
     }
   }, [open]);
 
   useEffect(() => {
-    if (selectedEventType?.id && selectedDate) {
+    if (debouncedHostSearch.length >= 2) {
+      searchHosts(debouncedHostSearch);
+    } else {
+      setHostResults([]);
+    }
+  }, [debouncedHostSearch]);
+
+  useEffect(() => {
+    if (debouncedCompanySearch.length >= 2) {
+      searchCompanies(debouncedCompanySearch);
+    } else {
+      setCompanyResults([]);
+    }
+  }, [debouncedCompanySearch]);
+
+  useEffect(() => {
+    if (selectedEventType?.uri && selectedDate) {
       loadSlots();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEventType?.id, selectedDate]);
+  }, [selectedEventType?.uri, selectedDate]);
 
-  const loadCompanies = async () => {
+  const searchHosts = async (query: string) => {
+    setHostLoading(true);
     try {
-      const res = await fetch("/api/cs/empresas?all=true");
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`);
       if (res.ok) {
         const data = await res.json();
-        setCompanies(Array.isArray(data) ? data : []);
+        setHostResults(data.filter((u: UserType) => u.role === "ADMIN" || u.role === "CS_OWNER"));
       }
     } catch (err) {
-      console.error("Erro ao carregar empresas:", err);
+      console.error("Erro ao buscar hosts:", err);
+    } finally {
+      setHostLoading(false);
+    }
+  };
+
+  const searchCompanies = async (query: string) => {
+    setCompanyLoading(true);
+    try {
+      const res = await fetch(`/api/companies/search?q=${encodeURIComponent(query)}&limit=10`);
+      if (res.ok) {
+        setCompanyResults(await res.json());
+      }
+    } catch (err) {
+      console.error("Erro ao buscar empresas:", err);
+    } finally {
+      setCompanyLoading(false);
     }
   };
 
   const loadEventTypes = async () => {
+    setLoadingEventTypes(true);
     try {
-      const res = await fetch("/api/calcom/event-types");
+      const res = await fetch("/api/calendly/event-types");
       if (res.ok) {
         const data = await res.json();
         const types = Array.isArray(data) ? data : [];
         setEventTypes(types);
         if (types.length > 0) setSelectedEventType(types[0]);
       } else {
-        setError("Erro ao carregar tipos de evento do Cal.com");
+        setError("Erro ao carregar tipos de evento do Calendly");
       }
     } catch (err) {
       console.error("Erro ao carregar event types:", err);
-      setError("Erro ao conectar com Cal.com");
+      setError("Erro ao conectar com Calendly");
+    } finally {
+      setLoadingEventTypes(false);
     }
   };
 
@@ -152,45 +240,73 @@ function NewBookingDialog({
 
     try {
       const params = new URLSearchParams({
-        eventTypeId: String(selectedEventType.id),
+        eventTypeUri: selectedEventType.uri,
         startTime: startDate.toISOString(),
         endTime: endDate.toISOString(),
       });
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      const res = await fetch(`/api/calcom/slots?${params}`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      
+      const res = await fetch(`/api/calendly/slots?${params}`);
       const data = await res.json();
-      
+
       if (res.ok) {
         if (data && typeof data === "object") {
           setSlots(data);
         }
       } else {
-        if (data.error?.includes("524") || data.error?.includes("timeout")) {
-          setError("Cal.com está lento. Tente novamente em alguns segundos.");
-        } else {
-          setError(data.error || "Erro ao buscar horários");
-        }
+        setError(data.error || "Erro ao buscar horários");
       }
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setError("Tempo esgotado. Cal.com está lento, tente novamente.");
-      } else {
-        setError("Erro ao conectar com Cal.com. Tente novamente.");
-      }
+      setError("Erro ao conectar com Calendly. Tente novamente.");
     } finally {
       setLoading(false);
     }
   };
 
+  const findNextAvailable = async () => {
+    if (!selectedEventType || searchingNext) return;
+
+    setSearchingNext(true);
+    setError("");
+    setSlots({});
+
+    try {
+      const params = new URLSearchParams({
+        eventTypeUri: selectedEventType.uri,
+        findNext: "true",
+      });
+
+      const res = await fetch(`/api/calendly/slots?${params}`);
+      const data = await res.json();
+
+      if (res.ok && data.nextAvailableDate) {
+        setSelectedDate(data.nextAvailableDate);
+        setSlots(data.slots || {});
+      } else if (data.message) {
+        setError(data.message);
+      } else {
+        setError("Nenhuma disponibilidade encontrada");
+      }
+    } catch (err) {
+      setError("Erro ao buscar disponibilidade");
+    } finally {
+      setSearchingNext(false);
+    }
+  };
+
+  const addInvitee = () => {
+    if (newInviteeName.trim() && newInviteeEmail.trim()) {
+      setAdditionalInvitees([...additionalInvitees, { name: newInviteeName.trim(), email: newInviteeEmail.trim() }]);
+      setNewInviteeName("");
+      setNewInviteeEmail("");
+    }
+  };
+
+  const removeInvitee = (index: number) => {
+    setAdditionalInvitees(additionalInvitees.filter((_, i) => i !== index));
+  };
+
   const handleCreateBooking = async () => {
-    if (!selectedSlot || !attendeeName || !attendeeEmail || !selectedEventType) {
+    if (!selectedSlot || !attendeeName || !attendeeEmail || !selectedEventType || !selectedHost) {
       setError("Preencha todos os campos obrigatórios");
       return;
     }
@@ -199,17 +315,19 @@ function NewBookingDialog({
     setError("");
 
     try {
-      const res = await fetch("/api/calcom/admin-create-booking", {
+      const res = await fetch("/api/calendly/admin-create-booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventTypeId: selectedEventType.id,
-          eventTypeSlug: selectedEventType.slug,
+          csOwnerId: selectedHost.id,
+          eventTypeUri: selectedEventType.uri,
           start: selectedSlot,
           attendeeName,
           attendeeEmail,
           companyId: selectedCompany?.id,
           lengthInMinutes: selectedEventType.lengthInMinutes,
+          additionalInvitees,
+          schedulingUrl: selectedSchedulingUrl,
         }),
       });
 
@@ -223,7 +341,6 @@ function NewBookingDialog({
       }
     } catch (err) {
       setError("Erro ao criar agendamento");
-      console.error(err);
     } finally {
       setCreating(false);
     }
@@ -231,27 +348,37 @@ function NewBookingDialog({
 
   const resetForm = () => {
     setStep(1);
+    setSelectedHost(null);
+    setHostSearch("");
+    setHostResults([]);
     setSelectedCompany(null);
+    setCompanySearch("");
+    setCompanyResults([]);
     setSelectedEventType(eventTypes[0] || null);
     setSelectedDate("");
     setSelectedSlot("");
+    setSelectedSchedulingUrl("");
     setAttendeeName("");
     setAttendeeEmail("");
+    setAdditionalInvitees([]);
+    setNewInviteeName("");
+    setNewInviteeEmail("");
     setError("");
+    setSearchingNext(false);
   };
 
   const slotsForDate = Object.entries(slots).flatMap(([, daySlots]) => daySlots);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Agendamento (Admin)</DialogTitle>
+          <DialogTitle>Novo Agendamento</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-2 mb-4">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className={`flex items-center ${s < 3 ? "flex-1" : ""}`}>
+          {[1, 2, 3, 4].map((s) => (
+            <div key={s} className={`flex items-center ${s < 4 ? "flex-1" : ""}`}>
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
                   step >= s ? "bg-primary text-white" : "bg-muted text-muted-foreground"
@@ -259,62 +386,190 @@ function NewBookingDialog({
               >
                 {s}
               </div>
-              {s < 3 && <div className={`flex-1 h-0.5 mx-2 ${step > s ? "bg-primary" : "bg-muted"}`} />}
+              {s < 4 && <div className={`flex-1 h-0.5 mx-2 ${step > s ? "bg-primary" : "bg-muted"}`} />}
             </div>
           ))}
         </div>
 
         {error && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm mb-4">
-            <AlertCircle className="h-4 w-4" />
-            {error}
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
         {step === 1 && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Selecione uma empresa (opcional)</p>
-            {loadingData ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div>
+              <label className="text-sm font-medium mb-2 block">Responsável pela reunião (CS Owner ou Admin)</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Digite para buscar..."
+                  value={hostSearch}
+                  onChange={(e) => setHostSearch(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            ) : (
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                <button
-                  onClick={() => setStep(2)}
-                  className="w-full p-3 rounded-lg border hover:bg-muted/50 text-left text-sm text-muted-foreground"
-                >
-                  Pular - agendar sem vincular empresa
-                </button>
-                {companies.map((company) => (
-                  <button
-                    key={company.id}
-                    onClick={() => {
-                      setSelectedCompany(company);
-                      setStep(2);
-                    }}
-                    className="w-full p-3 rounded-lg border hover:bg-muted/50 text-left flex items-center gap-3"
-                  >
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium">{company.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+
+              {selectedHost && (
+                <div className="mt-2 p-3 rounded-lg border bg-primary/5 border-primary/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="font-medium text-sm">{selectedHost.name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedHost.email}</p>
+                    </div>
+                    <Badge variant="secondary" size="sm">
+                      {selectedHost.role === "ADMIN" ? "Admin" : "CS Owner"}
+                    </Badge>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedHost(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {hostSearch.length >= 2 && !selectedHost && (
+                <div className="mt-2 border rounded-lg overflow-hidden">
+                  {hostLoading ? (
+                    <div className="p-4 text-center">
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    </div>
+                  ) : hostResults.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhum usuário encontrado
+                    </div>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto">
+                      {hostResults.map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => {
+                            setSelectedHost(user);
+                            setHostSearch("");
+                            setHostResults([]);
+                          }}
+                          className="w-full p-3 hover:bg-muted/50 text-left flex items-center gap-3 border-b last:border-b-0"
+                        >
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{user.name}</p>
+                            <p className="text-xs text-muted-foreground">{user.email}</p>
+                          </div>
+                          <Badge variant="outline" size="sm">
+                            {user.role === "ADMIN" ? "Admin" : "CS Owner"}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button onClick={() => setStep(2)} disabled={!selectedHost} className="flex-1">
+                Próximo
+              </Button>
+            </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-4">
             <div>
+              <label className="text-sm font-medium mb-2 block">Vincular a uma empresa (opcional)</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Digite para buscar empresa..."
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {selectedCompany && (
+                <div className="mt-2 p-3 rounded-lg border bg-primary/5 border-primary/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="font-medium text-sm">{selectedCompany.name}</p>
+                      {selectedCompany.csOwner && (
+                        <p className="text-xs text-muted-foreground">CS: {selectedCompany.csOwner.name}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedCompany(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {companySearch.length >= 2 && !selectedCompany && (
+                <div className="mt-2 border rounded-lg overflow-hidden">
+                  {companyLoading ? (
+                    <div className="p-4 text-center">
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    </div>
+                  ) : companyResults.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma empresa encontrada
+                    </div>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto">
+                      {companyResults.map((company) => (
+                        <button
+                          key={company.id}
+                          onClick={() => {
+                            setSelectedCompany(company);
+                            setCompanySearch("");
+                            setCompanyResults([]);
+                          }}
+                          className="w-full p-3 hover:bg-muted/50 text-left flex items-center gap-3 border-b last:border-b-0"
+                        >
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{company.name}</p>
+                            {company.csOwner && (
+                              <p className="text-xs text-muted-foreground">CS: {company.csOwner.name}</p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={() => setStep(1)}>
+                Voltar
+              </Button>
+              <Button onClick={() => setStep(3)} className="flex-1">
+                {selectedCompany ? "Próximo" : "Pular"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-4">
+            <div>
               <label className="text-sm font-medium mb-2 block">Tipo de Evento</label>
-              {eventTypes.length === 0 ? (
+              {loadingEventTypes ? (
+                <div className="p-4 text-center">
+                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                </div>
+              ) : eventTypes.length === 0 ? (
                 <div className="p-4 rounded-lg border border-dashed text-center">
                   <p className="text-sm text-muted-foreground mb-2">
                     Nenhum tipo de evento encontrado
                   </p>
                   <Button variant="outline" size="sm" asChild>
-                    <a href="https://app.cal.com/event-types" target="_blank" rel="noopener noreferrer">
+                    <a href="https://calendly.com/event_types" target="_blank" rel="noopener noreferrer">
                       Criar tipo de evento
                       <ExternalLink className="h-4 w-4 ml-2" />
                     </a>
@@ -322,16 +577,16 @@ function NewBookingDialog({
                 </div>
               ) : (
                 <select
-                  value={selectedEventType?.id || ""}
+                  value={selectedEventType?.uri || ""}
                   onChange={(e) => {
-                    const et = eventTypes.find((t) => t.id === parseInt(e.target.value));
+                    const et = eventTypes.find((t) => t.uri === e.target.value);
                     setSelectedEventType(et || null);
                     setSelectedSlot("");
                   }}
                   className="w-full h-10 rounded-md border bg-background px-3 text-sm"
                 >
                   {eventTypes.map((et) => (
-                    <option key={et.id} value={et.id}>
+                    <option key={et.uri} value={et.uri}>
                       {et.title} ({et.lengthInMinutes} min)
                     </option>
                   ))}
@@ -341,45 +596,46 @@ function NewBookingDialog({
 
             <div>
               <label className="text-sm font-medium mb-2 block">Data</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setSelectedSlot("");
-                }}
-                min={new Date().toISOString().split("T")[0]}
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    setSelectedSlot("");
+                  }}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="flex-1 h-10 rounded-md border bg-background px-3 text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={findNextAvailable}
+                  disabled={searchingNext || !selectedEventType}
+                  className="whitespace-nowrap"
+                >
+                  {searchingNext ? <Loader2 className="h-4 w-4 animate-spin" /> : "Próxima disponível"}
+                </Button>
+              </div>
             </div>
 
             {selectedDate && (
               <div>
                 <label className="text-sm font-medium mb-2 block">Horário</label>
                 {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-sm text-muted-foreground">Buscando horários...</span>
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Buscando...</span>
                   </div>
                 ) : slotsForDate.length === 0 ? (
-                  <div className="py-4 text-center space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {error || "Nenhum horário disponível para esta data"}
-                    </p>
-                    <div className="flex items-center justify-center gap-2">
-                      <Button variant="outline" size="sm" onClick={loadSlots}>
-                        Tentar novamente
-                      </Button>
-                      <Button variant="link" size="sm" asChild className="text-xs">
-                        <a href="https://app.cal.com/availability" target="_blank" rel="noopener noreferrer">
-                          Ver no Cal.com
-                          <ExternalLink className="h-3 w-3 ml-1" />
-                        </a>
-                      </Button>
-                    </div>
+                  <div className="py-4 text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">Nenhum horário disponível</p>
+                    <Button variant="outline" size="sm" onClick={findNextAvailable} disabled={searchingNext}>
+                      Buscar próxima disponibilidade
+                    </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto">
                     {slotsForDate.map((slot) => {
                       const time = new Date(slot.time).toLocaleTimeString("pt-BR", {
                         hour: "2-digit",
@@ -388,7 +644,10 @@ function NewBookingDialog({
                       return (
                         <button
                           key={slot.time}
-                          onClick={() => setSelectedSlot(slot.time)}
+                          onClick={() => {
+                            setSelectedSlot(slot.time);
+                            setSelectedSchedulingUrl(slot.schedulingUrl || "");
+                          }}
                           className={`p-2 text-sm rounded-md border transition-colors ${
                             selectedSlot === slot.time
                               ? "bg-primary text-white border-primary"
@@ -405,60 +664,114 @@ function NewBookingDialog({
             )}
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep(1)}>
+              <Button variant="outline" onClick={() => setStep(2)}>
                 Voltar
               </Button>
-              <Button onClick={() => setStep(3)} disabled={!selectedSlot} className="flex-1">
+              <Button onClick={() => setStep(4)} disabled={!selectedSlot} className="flex-1">
                 Próximo
               </Button>
             </div>
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Nome do Participante</label>
-              <input
-                type="text"
-                value={attendeeName}
-                onChange={(e) => setAttendeeName(e.target.value)}
-                placeholder="Nome completo"
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Nome do Participante</label>
+                <Input
+                  value={attendeeName}
+                  onChange={(e) => setAttendeeName(e.target.value)}
+                  placeholder="Nome completo"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">E-mail</label>
+                <Input
+                  type="email"
+                  value={attendeeEmail}
+                  onChange={(e) => setAttendeeEmail(e.target.value)}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">E-mail do Participante</label>
-              <input
-                type="email"
-                value={attendeeEmail}
-                onChange={(e) => setAttendeeEmail(e.target.value)}
-                placeholder="email@exemplo.com"
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              />
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Convidar mais pessoas (opcional)
+                </label>
+              </div>
+
+              {additionalInvitees.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {additionalInvitees.map((invitee, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{invitee.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{invitee.email}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeInvitee(index)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nome"
+                  value={newInviteeName}
+                  onChange={(e) => setNewInviteeName(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="email"
+                  placeholder="E-mail"
+                  value={newInviteeEmail}
+                  onChange={(e) => setNewInviteeEmail(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addInvitee}
+                  disabled={!newInviteeName.trim() || !newInviteeEmail.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="p-4 rounded-lg bg-muted/50 space-y-2 text-sm">
               <p className="font-medium">Resumo</p>
-              <p className="text-muted-foreground">
-                <span className="font-medium text-foreground">{selectedEventType?.title}</span>
-              </p>
-              <p className="text-muted-foreground">
-                {selectedSlot &&
-                  new Date(selectedSlot).toLocaleString("pt-BR", {
+              <div className="space-y-1 text-muted-foreground">
+                <p><span className="font-medium text-foreground">Evento:</span> {selectedEventType?.title}</p>
+                <p>
+                  <span className="font-medium text-foreground">Data:</span>{" "}
+                  {selectedSlot && new Date(selectedSlot).toLocaleString("pt-BR", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
-              </p>
-              {selectedCompany && <p className="text-muted-foreground">Empresa: {selectedCompany.name}</p>}
+                </p>
+                <p><span className="font-medium text-foreground">Responsável:</span> {selectedHost?.name}</p>
+                {selectedCompany && (
+                  <p><span className="font-medium text-foreground">Empresa:</span> {selectedCompany.name}</p>
+                )}
+                {additionalInvitees.length > 0 && (
+                  <p><span className="font-medium text-foreground">Convidados extras:</span> {additionalInvitees.length}</p>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button variant="outline" onClick={() => setStep(3)}>
                 Voltar
               </Button>
               <Button
@@ -479,7 +792,7 @@ function NewBookingDialog({
 
 export default function AdminAgendaPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [csOwners, setCsOwners] = useState<CSOwner[]>([]);
+  const [csOwners, setCsOwners] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [selectedCsOwner, setSelectedCsOwner] = useState<string>("all");
@@ -502,7 +815,7 @@ export default function AdminAgendaPage() {
       }
       params.set("limit", "50");
 
-      const res = await fetch(`/api/calcom/all-bookings?${params}`);
+      const res = await fetch(`/api/calendly/all-bookings?${params}`);
       if (res.ok) {
         setBookings(await res.json());
       }
@@ -529,14 +842,6 @@ export default function AdminAgendaPage() {
     return new Date(dateStr).toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
-    });
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("pt-BR", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
     });
   };
 
@@ -569,9 +874,9 @@ export default function AdminAgendaPage() {
               Novo Agendamento
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href="https://app.cal.com/bookings/upcoming" target="_blank" rel="noopener noreferrer">
+              <a href="https://calendly.com/app/scheduled_events/user/me" target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Abrir Cal.com
+                Abrir Calendly
               </a>
             </Button>
           </div>
@@ -645,9 +950,10 @@ export default function AdminAgendaPage() {
             ) : (
               <div className="space-y-3">
                 {bookings.map((booking) => (
-                  <div
+                  <Link
                     key={booking.id}
-                    className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/50 transition-colors"
+                    href={`/admin/agenda/${booking.id}`}
+                    className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/50 transition-colors block"
                   >
                     <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-primary/10 text-primary">
                       <span className="text-xs font-medium">
@@ -662,6 +968,18 @@ export default function AdminAgendaPage() {
                         <Badge variant="secondary" size="sm">
                           {EVENT_TYPE_LABELS[booking.eventType] || booking.eventType}
                         </Badge>
+                        {booking.transcript && (
+                          <Badge variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-200 bg-purple-50 dark:bg-purple-900/20">
+                            <FileText className="h-3 w-3" />
+                            Fathom
+                          </Badge>
+                        )}
+                        {booking.notes && (
+                          <Badge variant="outline" size="sm" className="gap-1 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+                            <MessageSquare className="h-3 w-3" />
+                            Notas
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -687,14 +1005,19 @@ export default function AdminAgendaPage() {
                     </div>
 
                     {booking.meetingUrl && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={booking.meetingUrl} target="_blank" rel="noopener noreferrer">
-                          <Video className="h-4 w-4 mr-1" />
-                          Entrar
-                        </a>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.open(booking.meetingUrl, "_blank");
+                        }}
+                      >
+                        <Video className="h-4 w-4 mr-1" />
+                        Entrar
                       </Button>
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

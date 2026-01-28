@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NotificationBell } from "@/components/notifications";
 import { cn, formatDate } from "@/lib/utils";
 
 type Delivery = {
@@ -154,10 +155,11 @@ export default function ClienteDashboardPage() {
                 {data.contractStart && `Início: ${formatDate(data.contractStart)}`}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
+              <NotificationBell />
               <Badge variant="success" size="lg" className="gap-1.5">
                 <div className="h-2 w-2 rounded-full bg-current animate-pulse" />
-                {data.status}
+                Ativo
               </Badge>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Header } from "@/components/layout/header";
+import { ClienteHeader } from "@/components/layout/cliente-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import {
   Video,
   CalendarPlus,
   Loader2,
-  ExternalLink,
 } from "lucide-react";
 
 type Booking = {
@@ -42,7 +41,6 @@ export default function ClienteAgendaPage() {
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [generatingLink, setGeneratingLink] = useState(false);
-  const [schedulingUrl, setSchedulingUrl] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -52,7 +50,7 @@ export default function ClienteAgendaPage() {
     setLoading(true);
     try {
       const [bookingsRes, companyRes] = await Promise.all([
-        fetch("/api/calcom/upcoming?limit=20"),
+        fetch("/api/calendly/upcoming?limit=20"),
         fetch("/api/cliente/company"),
       ]);
 
@@ -69,7 +67,7 @@ export default function ClienteAgendaPage() {
     if (!company?.csOwner?.id) return;
     setGeneratingLink(true);
     try {
-      const res = await fetch("/api/calcom/booking-link", {
+      const res = await fetch("/api/calendly/booking-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -79,7 +77,6 @@ export default function ClienteAgendaPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setSchedulingUrl(data.link);
         window.open(data.link, "_blank");
       }
     } catch (error) {
@@ -87,14 +84,6 @@ export default function ClienteAgendaPage() {
     } finally {
       setGeneratingLink(false);
     }
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    });
   };
 
   const formatTime = (dateStr: string) => {
@@ -107,7 +96,7 @@ export default function ClienteAgendaPage() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="Agenda" subtitle="Suas reuniões" />
+        <ClienteHeader title="Agenda" subtitle="Suas reuniões" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -117,7 +106,7 @@ export default function ClienteAgendaPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Agenda" subtitle="Suas reuniões com o CS" />
+      <ClienteHeader title="Agenda" subtitle="Suas reuniões com o CS" />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {company?.csOwner && (

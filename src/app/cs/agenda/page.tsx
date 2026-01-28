@@ -26,7 +26,10 @@ import {
   ArrowRight,
   Check,
   AlertCircle,
+  FileText,
+  MessageSquare,
 } from "lucide-react";
+import Link from "next/link";
 
 type Booking = {
   id: string;
@@ -40,15 +43,19 @@ type Booking = {
   attendeeEmail: string;
   company?: { id: string; name: string };
   delivery?: { id: string; title: string };
+  notes?: string;
+  fathomUrl?: string;
+  transcript?: string;
 };
 
-type CalComConfig = {
-  calComUsername?: string;
+type CalendlyConfig = {
+  calendlyUsername?: string;
   configured?: boolean;
 };
 
 type EventType = {
-  id: number;
+  id: string;
+  uri: string;
   slug: string;
   title: string;
   lengthInMinutes: number;
@@ -94,7 +101,7 @@ function SetupWizard({
             </div>
             <h2 className="text-2xl font-bold mb-2">Configure sua Agenda</h2>
             <p className="text-muted-foreground">
-              Conecte seu Cal.com para agendar reuniões com clientes
+              Conecte seu Calendly para agendar reuniões com clientes
             </p>
           </div>
 
@@ -119,14 +126,14 @@ function SetupWizard({
             <div className="bg-background rounded-xl p-6 border">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-sm">1</span>
-                Crie sua conta no Cal.com
+                Crie sua conta no Calendly
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                O Cal.com é uma plataforma gratuita de agendamento. Se você ainda não tem uma conta, crie agora.
+                O Calendly é uma plataforma de agendamento. Se você ainda não tem uma conta, crie agora.
               </p>
               <div className="flex gap-3">
                 <Button asChild>
-                  <a href="https://cal.com/signup" target="_blank" rel="noopener noreferrer">
+                  <a href="https://calendly.com/signup" target="_blank" rel="noopener noreferrer">
                     Criar conta
                     <ExternalLink className="h-4 w-4 ml-2" />
                   </a>
@@ -152,14 +159,14 @@ function SetupWizard({
                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center mt-0.5">1</span>
                     <span>
                       Acesse{" "}
-                      <a href="https://app.cal.com/settings/my-account/profile" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                        app.cal.com/settings
+                      <a href="https://calendly.com/app/admin/account" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        calendly.com/app/admin/account
                       </a>
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center mt-0.5">2</span>
-                    <span>Procure por &quot;Username&quot;</span>
+                    <span>Procure por &quot;My Link&quot; ou &quot;Meu Link&quot;</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center mt-0.5">3</span>
@@ -189,7 +196,7 @@ function SetupWizard({
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center gap-2 p-1 rounded-lg border bg-muted/30">
-                  <span className="text-sm text-muted-foreground pl-3">cal.com/</span>
+                  <span className="text-sm text-muted-foreground pl-3">calendly.com/</span>
                   <input
                     type="text"
                     value={username}
@@ -202,7 +209,7 @@ function SetupWizard({
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                     <span className="text-muted-foreground">
-                      Seu perfil: <code className="bg-muted px-1 rounded">cal.com/{username}</code>
+                      Seu perfil: <code className="bg-muted px-1 rounded">calendly.com/{username}</code>
                     </span>
                   </div>
                 )}
@@ -225,8 +232,8 @@ function SetupWizard({
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Precisa de ajuda?</p>
                 <p>
-                  Certifique-se de criar pelo menos um tipo de evento no Cal.com.{" "}
-                  <a href="https://cal.com/docs/introduction" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Certifique-se de criar pelo menos um tipo de evento no Calendly.{" "}
+                  <a href="https://help.calendly.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                     Ver documentação
                   </a>
                 </p>
@@ -247,7 +254,7 @@ function NewBookingDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  config: CalComConfig;
+  config: CalendlyConfig;
   onSuccess: () => void;
 }) {
   const [step, setStep] = useState(1);
@@ -296,7 +303,7 @@ function NewBookingDialog({
 
   const loadEventTypes = async () => {
     try {
-      const res = await fetch("/api/calcom/event-types");
+      const res = await fetch("/api/calendly/event-types");
       if (res.ok) {
         const data = await res.json();
         const types = Array.isArray(data) ? data : [];
@@ -304,11 +311,11 @@ function NewBookingDialog({
         if (types.length > 0) setSelectedEventType(types[0]);
       } else {
         console.error("Erro ao carregar event types:", await res.text());
-        setError("Erro ao carregar tipos de evento do Cal.com. Verifique sua API Key.");
+        setError("Erro ao carregar tipos de evento do Calendly. Verifique sua API Key.");
       }
     } catch (err) {
       console.error("Erro ao carregar event types:", err);
-      setError("Erro ao conectar com Cal.com");
+      setError("Erro ao conectar com Calendly");
     }
   };
 
@@ -324,12 +331,12 @@ function NewBookingDialog({
 
     try {
       const params = new URLSearchParams({
-        eventTypeId: String(selectedEventType.id),
+        eventTypeUri: selectedEventType.uri,
         startTime: startDate.toISOString(),
         endTime: endDate.toISOString(),
       });
 
-      const res = await fetch(`/api/calcom/slots?${params}`);
+      const res = await fetch(`/api/calendly/slots?${params}`);
       if (res.ok) {
         const data = await res.json();
         setSlots(data);
@@ -353,12 +360,11 @@ function NewBookingDialog({
     setError("");
 
     try {
-      const res = await fetch("/api/calcom/create-booking", {
+      const res = await fetch("/api/calendly/create-booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventTypeId: selectedEventType.id,
-          eventTypeSlug: selectedEventType.slug,
+          eventTypeUri: selectedEventType.uri,
           start: selectedSlot,
           attendeeName,
           attendeeEmail,
@@ -473,10 +479,10 @@ function NewBookingDialog({
               {eventTypes.length === 0 ? (
                 <div className="p-4 rounded-lg border border-dashed text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    Nenhum tipo de evento encontrado no Cal.com
+                    Nenhum tipo de evento encontrado no Calendly
                   </p>
                   <Button variant="outline" size="sm" asChild>
-                    <a href="https://app.cal.com/event-types" target="_blank" rel="noopener noreferrer">
+                    <a href="https://calendly.com/event_types" target="_blank" rel="noopener noreferrer">
                       Criar tipo de evento
                       <ExternalLink className="h-4 w-4 ml-2" />
                     </a>
@@ -484,16 +490,16 @@ function NewBookingDialog({
                 </div>
               ) : (
                 <select
-                  value={selectedEventType?.id || ""}
+                  value={selectedEventType?.uri || ""}
                   onChange={(e) => {
-                    const et = eventTypes.find((t) => t.id === parseInt(e.target.value));
+                    const et = eventTypes.find((t) => t.uri === e.target.value);
                     setSelectedEventType(et || null);
                     setSelectedSlot("");
                   }}
                   className="w-full h-10 rounded-md border bg-background px-3 text-sm"
                 >
                   {eventTypes.map((et) => (
-                    <option key={et.id} value={et.id}>
+                    <option key={et.uri} value={et.uri}>
                       {et.title} ({et.lengthInMinutes} min)
                     </option>
                   ))}
@@ -634,7 +640,7 @@ function NewBookingDialog({
 
 export default function CSAgendaPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [config, setConfig] = useState<CalComConfig | null>(null);
+  const [config, setConfig] = useState<CalendlyConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [configOpen, setConfigOpen] = useState(false);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
@@ -649,15 +655,15 @@ export default function CSAgendaPage() {
     setLoading(true);
     try {
       const [bookingsRes, configRes] = await Promise.all([
-        fetch("/api/calcom/upcoming?limit=20"),
-        fetch("/api/calcom/config"),
+        fetch("/api/calendly/upcoming?limit=20"),
+        fetch("/api/calendly/config"),
       ]);
 
       if (bookingsRes.ok) setBookings(await bookingsRes.json());
       if (configRes.ok) {
         const cfg = await configRes.json();
         setConfig(cfg);
-        if (cfg.calComUsername) setUsername(cfg.calComUsername);
+        if (cfg.calendlyUsername) setUsername(cfg.calendlyUsername);
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -670,10 +676,10 @@ export default function CSAgendaPage() {
     if (!username.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/calcom/config", {
+      const res = await fetch("/api/calendly/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ calComUsername: username.trim() }),
+        body: JSON.stringify({ calendlyUsername: username.trim() }),
       });
       if (res.ok) {
         setConfig(await res.json());
@@ -704,11 +710,11 @@ export default function CSAgendaPage() {
     );
   }
 
-  const isConfigured = config?.calComUsername;
+  const isConfigured = config?.calendlyUsername;
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Agenda" subtitle="Gerenciar reuniões via Cal.com" />
+      <Header title="Agenda" subtitle="Gerenciar reuniões via Calendly" />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {!isConfigured ? (
@@ -725,7 +731,7 @@ export default function CSAgendaPage() {
                 <h2 className="text-lg font-semibold">Suas Reuniões</h2>
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Conectado: cal.com/{config.calComUsername}
+                  Conectado: calendly.com/{config.calendlyUsername}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -734,9 +740,9 @@ export default function CSAgendaPage() {
                   Novo Agendamento
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`https://cal.com/${config.calComUsername}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`https://calendly.com/${config.calendlyUsername}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Meu Cal.com
+                    Meu Calendly
                   </a>
                 </Button>
                 <Dialog open={configOpen} onOpenChange={setConfigOpen}>
@@ -749,9 +755,9 @@ export default function CSAgendaPage() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Seu usuário no Cal.com</label>
+                        <label className="text-sm font-medium">Seu usuário no Calendly</label>
                         <div className="flex items-center gap-2 p-1 rounded-lg border bg-muted/30">
-                          <span className="text-sm text-muted-foreground pl-3">cal.com/</span>
+                          <span className="text-sm text-muted-foreground pl-3">calendly.com/</span>
                           <input
                             type="text"
                             value={username}
@@ -791,9 +797,10 @@ export default function CSAgendaPage() {
                 ) : (
                   <div className="space-y-3">
                     {bookings.map((booking) => (
-                      <div
+                      <Link
                         key={booking.id}
-                        className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/50 transition-colors"
+                        href={`/cs/agenda/${booking.id}`}
+                        className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/50 transition-colors block"
                       >
                         <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-primary/10 text-primary">
                           <span className="text-xs font-medium">
@@ -808,6 +815,18 @@ export default function CSAgendaPage() {
                             <Badge variant="secondary" size="sm">
                               {EVENT_TYPE_LABELS[booking.eventType] || booking.eventType}
                             </Badge>
+                            {booking.transcript && (
+                              <Badge variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-200 bg-purple-50 dark:bg-purple-900/20">
+                                <FileText className="h-3 w-3" />
+                                Fathom
+                              </Badge>
+                            )}
+                            {booking.notes && (
+                              <Badge variant="outline" size="sm" className="gap-1 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+                                <MessageSquare className="h-3 w-3" />
+                                Notas
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
@@ -828,14 +847,19 @@ export default function CSAgendaPage() {
                         </div>
 
                         {booking.meetingUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={booking.meetingUrl} target="_blank" rel="noopener noreferrer">
-                              <Video className="h-4 w-4 mr-1" />
-                              Entrar
-                            </a>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              window.open(booking.meetingUrl, "_blank");
+                            }}
+                          >
+                            <Video className="h-4 w-4 mr-1" />
+                            Entrar
                           </Button>
                         )}
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}

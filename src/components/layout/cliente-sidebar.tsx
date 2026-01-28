@@ -15,6 +15,7 @@ import {
   ClipboardList,
   Sparkles,
   Calendar,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const navigation = [
   { name: "Entregas", href: "/cliente/entregas", icon: Package, color: "from-emerald-500 to-teal-500" },
   { name: "Agenda", href: "/cliente/agenda", icon: Calendar, color: "from-pink-500 to-rose-500" },
   { name: "Pesquisas", href: "/cliente/pesquisas", icon: ClipboardList, color: "from-amber-500 to-orange-500" },
+  { name: "Notificações", href: "/cliente/notificacoes", icon: Bell, color: "from-rose-500 to-pink-500" },
   { name: "Recursos", href: "/cliente/recursos", icon: Sparkles, color: "from-purple-500 to-pink-500" },
   { name: "Documentação", href: "/cliente/documentacao", icon: FileText, color: "from-blue-500 to-cyan-500" },
   { name: "Suporte", href: "/cliente/suporte", icon: MessageSquare, color: "from-cyan-500 to-blue-500" },

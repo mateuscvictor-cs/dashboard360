@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClienteHeader } from "@/components/layout/cliente-header";
 import { cn } from "@/lib/utils";
 
 type ClientResource = {
@@ -123,21 +124,7 @@ export default function RecursosPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 shadow-md">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Recursos</h1>
-              <p className="text-sm text-muted-foreground">
-                Automações, IPCs e links úteis configurados para você
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ClienteHeader title="Recursos" subtitle="Automações, IPCs e links úteis" />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {totalResources === 0 ? (

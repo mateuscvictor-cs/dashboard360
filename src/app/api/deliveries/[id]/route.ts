@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireRole } from "@/lib/auth-server"
 import { prisma } from "@/lib/db"
+import { notificationService } from "@/services/notification.service"
 
 export async function GET(
   request: NextRequest,
@@ -51,6 +52,23 @@ export async function GET(
             response: true,
           },
           orderBy: { createdAt: "desc" },
+        },
+        dependencies: {
+          orderBy: [
+            { status: "asc" },
+            { dueDate: "asc" },
+          ],
+        },
+        comments: {
+          include: {
+            author: {
+              select: { id: true, name: true, image: true, role: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        clientApprovedBy: {
+          select: { id: true, name: true },
         },
       },
     })
@@ -106,6 +124,7 @@ export async function PATCH(
 
     if (body.title !== undefined) updateData.title = body.title
     if (body.description !== undefined) updateData.description = body.description
+    if (body.impactDescription !== undefined) updateData.impactDescription = body.impactDescription
     if (body.status !== undefined) updateData.status = body.status
     if (body.progress !== undefined) updateData.progress = body.progress
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null
@@ -113,16 +132,16 @@ export async function PATCH(
     if (body.blockers !== undefined) updateData.blockers = body.blockers
     if (body.impact !== undefined) updateData.impact = body.impact
     if (body.cadence !== undefined) updateData.cadence = body.cadence
+    if (body.clientApprovalStatus !== undefined) updateData.clientApprovalStatus = body.clientApprovalStatus
 
     const delivery = await prisma.delivery.update({
       where: { id },
       data: updateData,
       include: {
         company: {
-          select: {
-            id: true,
-            name: true,
-            csOwner: { select: { id: true, name: true } },
+          include: {
+            users: true,
+            csOwner: { include: { user: true } },
           },
         },
         completion: {
@@ -134,6 +153,14 @@ export async function PATCH(
         },
       },
     })
+
+    if (body.progress !== undefined && body.progress !== existing.progress) {
+      notificationService.notifyDeliveryProgress(
+        delivery as never,
+        existing.progress,
+        body.progress
+      ).catch(console.error)
+    }
 
     return NextResponse.json(delivery)
   } catch (error) {

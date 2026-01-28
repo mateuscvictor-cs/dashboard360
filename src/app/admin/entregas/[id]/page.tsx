@@ -32,6 +32,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { DeliveryMeetingForm } from "@/components/delivery/delivery-meeting-form";
 import { DeliveryDocumentForm } from "@/components/delivery/delivery-document-form";
+import { DeliveryDependenciesList } from "@/components/delivery/delivery-dependencies-list";
+import { DeliveryComments } from "@/components/delivery/delivery-comments";
 
 type Participant = {
   id: string;
@@ -65,16 +67,42 @@ type Document = {
   uploadedBy: { id: string; name: string } | null;
 };
 
+type Dependency = {
+  id: string;
+  title: string;
+  description: string | null;
+  type: "ACCESS" | "DOCUMENT" | "APPROVAL" | "INFORMATION";
+  status: "PENDING" | "PROVIDED" | "OVERDUE" | "NOT_NEEDED";
+  dueDate: string | null;
+  providedAt: string | null;
+  providedNote: string | null;
+};
+
+type Comment = {
+  id: string;
+  content: string;
+  type: "COMMENT" | "CHANGE_REQUEST" | "APPROVAL" | "REJECTION" | "RESPONSE";
+  createdAt: string;
+  author: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    role: string;
+  };
+};
+
 type Delivery = {
   id: string;
   title: string;
   description: string | null;
+  impactDescription: string | null;
   status: string;
   progress: number;
   dueDate: string | null;
   assignee: string | null;
   blockers: string[];
   impact: string;
+  clientApprovalStatus: string | null;
   createdAt: string;
   updatedAt: string;
   company: {
@@ -91,6 +119,8 @@ type Delivery = {
   } | null;
   meetings: Meeting[];
   documents: Document[];
+  dependencies: Dependency[];
+  comments: Comment[];
 };
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle; variant: "healthy" | "attention" | "risk" | "critical" | "secondary" }> = {
@@ -258,11 +288,22 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="dependencies" className="relative">
+              Dependências
+              {delivery.dependencies.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").length > 0 && (
+                <span className="ml-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                  {delivery.dependencies.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="meetings">
               Reuniões ({delivery.meetings.length})
             </TabsTrigger>
             <TabsTrigger value="documents">
               Documentos ({delivery.documents.length})
+            </TabsTrigger>
+            <TabsTrigger value="comments">
+              Comunicação ({delivery.comments.length})
             </TabsTrigger>
           </TabsList>
 
@@ -354,6 +395,43 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
                 </CardContent>
               </Card>
             )}
+
+            {delivery.clientApprovalStatus && (
+              <Card className={`${
+                delivery.clientApprovalStatus === "APPROVED"
+                  ? "border-green-200 bg-green-50/50 dark:border-green-500/30 dark:bg-green-500/5"
+                  : delivery.clientApprovalStatus === "CHANGES_REQUESTED"
+                  ? "border-orange-200 bg-orange-50/50 dark:border-orange-500/30 dark:bg-orange-500/5"
+                  : "border-yellow-200 bg-yellow-50/50 dark:border-yellow-500/30 dark:bg-yellow-500/5"
+              }`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    {delivery.clientApprovalStatus === "APPROVED" ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : delivery.clientApprovalStatus === "CHANGES_REQUESTED" ? (
+                      <AlertTriangle className="h-5 w-5 text-orange-600" />
+                    ) : (
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                    )}
+                    <span className="font-medium">
+                      {delivery.clientApprovalStatus === "APPROVED"
+                        ? "Aprovado pelo cliente"
+                        : delivery.clientApprovalStatus === "CHANGES_REQUESTED"
+                        ? "Cliente solicitou alterações"
+                        : "Aguardando aprovação do cliente"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="dependencies" className="space-y-4">
+            <DeliveryDependenciesList
+              deliveryId={id}
+              dependencies={delivery.dependencies}
+              onRefresh={fetchDelivery}
+            />
           </TabsContent>
 
           <TabsContent value="meetings" className="space-y-4">
@@ -575,6 +653,16 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
                 })}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="comments" className="space-y-4">
+            <DeliveryComments
+              deliveryId={id}
+              comments={delivery.comments}
+              onRefresh={fetchDelivery}
+              isClient={false}
+              apiBasePath="/api/deliveries"
+            />
           </TabsContent>
         </Tabs>
       </div>

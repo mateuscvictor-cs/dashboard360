@@ -3,6 +3,7 @@
 import { Moon, Sun, Monitor } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ProfileSettings, PasswordSettings } from "@/components/settings/profile-settings";
+import { NotificationPreferences } from "@/components/settings/notification-preferences";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
@@ -84,20 +85,7 @@ export default function ClienteConfiguracoesPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Notificações</CardTitle>
-              <CardDescription>
-                Configure suas preferências de notificações
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ToggleOption label="Notificações de entregas" defaultChecked />
-              <ToggleOption label="Atualizações de progresso" defaultChecked />
-              <ToggleOption label="Lembretes de prazos" defaultChecked />
-              <ToggleOption label="Resumo semanal por email" />
-            </CardContent>
-          </Card>
+          <NotificationPreferences />
         </div>
       </div>
     </div>
@@ -128,35 +116,5 @@ function ThemeButton({
       <Icon className="h-5 w-5" />
       <span className="text-sm font-medium">{label}</span>
     </button>
-  );
-}
-
-function ToggleOption({
-  label,
-  defaultChecked = false,
-}: {
-  label: string;
-  defaultChecked?: boolean;
-}) {
-  const [checked, setChecked] = useState(defaultChecked);
-
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm">{label}</span>
-      <button
-        onClick={() => setChecked(!checked)}
-        className={cn(
-          "relative h-6 w-11 rounded-full transition-colors",
-          checked ? "bg-primary" : "bg-muted"
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform",
-            checked && "translate-x-5"
-          )}
-        />
-      </button>
-    </div>
   );
 }

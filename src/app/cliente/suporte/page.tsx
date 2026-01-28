@@ -4,6 +4,7 @@ import { Users, Mail, MessageSquare, Phone, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ClienteHeader } from "@/components/layout/cliente-header";
 
 const supportContacts = [
   {
@@ -27,14 +28,7 @@ const supportContacts = [
 export default function SuportePage() {
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <h1 className="text-2xl font-bold">Suporte</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Entre em contato com nossa equipe de suporte
-          </p>
-        </div>
-      </div>
+      <ClienteHeader title="Suporte" subtitle="Entre em contato com nossa equipe de suporte" />
 
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl space-y-6">

@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react"
-import { Header } from "@/components/layout/header"
+import { ClienteHeader } from "@/components/layout/cliente-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -182,7 +182,7 @@ export default function PesquisasPage() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="Pesquisas" subtitle="Suas avaliações" showFilters={false} />
+        <ClienteHeader title="Pesquisas" subtitle="Suas avaliações" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -192,7 +192,7 @@ export default function PesquisasPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Pesquisas" subtitle="Suas avaliações de satisfação" showFilters={false} />
+      <ClienteHeader title="Pesquisas" subtitle="Suas avaliações de satisfação" />
 
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl mx-auto space-y-6">
