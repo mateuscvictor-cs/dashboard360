@@ -85,7 +85,7 @@ const itemVariants = {
     y: 0,
     scale: 1,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 300,
       damping: 24,
     },
@@ -99,7 +99,7 @@ const lineVariants = {
     opacity: 1,
     transition: {
       duration: 0.4,
-      ease: "easeOut",
+      ease: "easeOut" as const,
     },
   },
 };
@@ -111,7 +111,7 @@ const pulseVariants = {
     transition: {
       duration: 2,
       repeat: Infinity,
-      ease: "easeInOut",
+      ease: "easeInOut" as const,
     },
   },
 };
