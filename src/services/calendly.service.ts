@@ -552,6 +552,7 @@ export const calendlyService = {
 
     if (booking.companyId) {
       const statusLabels: Record<CalendlyBookingStatus, string> = {
+        PENDING: "pendente",
         SCHEDULED: "agendada",
         COMPLETED: "concluída",
         CANCELLED: "cancelada",
