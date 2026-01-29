@@ -40,7 +40,15 @@ export async function POST(
     console.log("[Analyze] Automations:", analysis.suggestedAutomations?.length || 0);
     console.log("[Analyze] Has presentation prompt:", !!analysis.presentationPrompt);
 
-    await diagnosticService.saveAnalysis(id, analysis);
+    await diagnosticService.saveAnalysis(id, {
+      summary: analysis.summary,
+      suggestedIPCs: analysis.suggestedIPCs as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      suggestedAutomations: analysis.suggestedAutomations as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      priorityTasks: analysis.priorityTasks as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      estimatedSavings: analysis.estimatedSavings as unknown as import("@prisma/client").Prisma.InputJsonValue,
+      presentationPrompt: analysis.presentationPrompt,
+      rawAnalysis: analysis.rawAnalysis,
+    });
     console.log("[Analyze] Analysis saved to database");
 
     await diagnosticService.markAsAnalyzed(id);

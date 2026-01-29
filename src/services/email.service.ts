@@ -10,12 +10,14 @@ const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || "noreply@vanguardia.com";
 const SENDER_NAME = process.env.BREVO_SENDER_NAME || "Vanguardia 360";
 const APP_URL = process.env.AUTH_URL || "http://localhost:3000";
 
-type InviteType = "COMPANY_ADMIN" | "MEMBER_ADMIN" | "MEMBER_CS";
+type InviteType = "COMPANY_ADMIN" | "COMPANY_MEMBER" | "MEMBER_ADMIN" | "MEMBER_CS";
 
 function getInviteSubject(type: InviteType): string {
   switch (type) {
     case "COMPANY_ADMIN":
       return "Você foi convidado para acessar o Vanguardia 360";
+    case "COMPANY_MEMBER":
+      return "Você foi convidado para participar da sua empresa no Vanguardia 360";
     case "MEMBER_ADMIN":
       return "Convite para Admin - Vanguardia 360";
     case "MEMBER_CS":

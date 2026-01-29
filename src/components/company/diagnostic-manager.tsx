@@ -56,11 +56,15 @@ interface DiagnosticResponse {
   };
 }
 
+interface SuggestedItem {
+  name?: string;
+}
+
 interface DiagnosticAnalysis {
   id: string;
   summary: string;
-  suggestedIPCs: unknown[];
-  suggestedAutomations: unknown[];
+  suggestedIPCs: SuggestedItem[];
+  suggestedAutomations: SuggestedItem[];
   priorityTasks: unknown[];
   estimatedSavings: unknown;
   presentationPrompt: string | null;
@@ -432,9 +436,9 @@ export function DiagnosticManager({ companyId }: DiagnosticManagerProps) {
                                 <div>
                                   <h4 className="text-sm font-medium mb-2">IPCs Sugeridos</h4>
                                   <div className="flex flex-wrap gap-2">
-                                    {diagnostic.aiAnalysis.suggestedIPCs.map((ipc: { name?: string }, index: number) => (
+                                    {diagnostic.aiAnalysis.suggestedIPCs.map((ipc, index) => (
                                       <Badge key={index} variant="secondary">
-                                        {typeof ipc === "string" ? ipc : ipc.name || `IPC ${index + 1}`}
+                                        {ipc.name || `IPC ${index + 1}`}
                                       </Badge>
                                     ))}
                                   </div>
@@ -446,9 +450,9 @@ export function DiagnosticManager({ companyId }: DiagnosticManagerProps) {
                                 <div>
                                   <h4 className="text-sm font-medium mb-2">Automações Sugeridas</h4>
                                   <div className="flex flex-wrap gap-2">
-                                    {diagnostic.aiAnalysis.suggestedAutomations.map((automation: { name?: string }, index: number) => (
+                                    {diagnostic.aiAnalysis.suggestedAutomations.map((automation, index) => (
                                       <Badge key={index} variant="outline">
-                                        {typeof automation === "string" ? automation : automation.name || `Automação ${index + 1}`}
+                                        {automation.name || `Automação ${index + 1}`}
                                       </Badge>
                                     ))}
                                   </div>

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { DiagnosticStatus, DiagnosticForm, DiagnosticResponse, DiagnosticAnalysis, DiagnosticAudience } from "@prisma/client";
+import type { DiagnosticStatus, DiagnosticForm, DiagnosticResponse, DiagnosticAnalysis, DiagnosticAudience, Prisma } from "@prisma/client";
 import { randomBytes } from "crypto";
 
 function generateSlug(name: string): string {
@@ -214,9 +214,9 @@ export const diagnosticService = {
     const respondedDiagnosticIds = [...new Set(respondedIds.map(r => r.diagnosticId))];
 
     const audienceFilter = userRole === "CLIENT_MEMBER" 
-      ? { targetAudience: { in: ["ALL", "MEMBER_ONLY"] as const } }
+      ? { targetAudience: { in: ["ALL", "MEMBER_ONLY"] as DiagnosticAudience[] } }
       : userRole === "CLIENT"
-      ? { targetAudience: { in: ["ALL", "CLIENT_ONLY"] as const } }
+      ? { targetAudience: { in: ["ALL", "CLIENT_ONLY"] as DiagnosticAudience[] } }
       : {};
 
     return prisma.diagnosticForm.findMany({
@@ -315,9 +315,9 @@ export const diagnosticService = {
         humanErrorArea: data.humanErrorArea,
         dependencyArea: data.dependencyArea,
         frustration: data.frustration,
-        taskDetails: data.taskDetails as unknown as Record<string, unknown>,
-        systemsData: data.systemsData as unknown as Record<string, unknown>,
-        priorityData: data.priorityData as unknown as Record<string, unknown>,
+        taskDetails: data.taskDetails as Prisma.InputJsonValue,
+        systemsData: data.systemsData as Prisma.InputJsonValue,
+        priorityData: data.priorityData as Prisma.InputJsonValue,
         completedAt: new Date(),
       },
     });
@@ -414,10 +414,10 @@ export const diagnosticService = {
     diagnosticId: string,
     analysis: {
       summary: string;
-      suggestedIPCs: unknown[];
-      suggestedAutomations: unknown[];
-      priorityTasks: unknown[];
-      estimatedSavings: unknown;
+      suggestedIPCs: Prisma.InputJsonValue;
+      suggestedAutomations: Prisma.InputJsonValue;
+      priorityTasks: Prisma.InputJsonValue;
+      estimatedSavings: Prisma.InputJsonValue;
       presentationPrompt: string;
       rawAnalysis: string;
     }

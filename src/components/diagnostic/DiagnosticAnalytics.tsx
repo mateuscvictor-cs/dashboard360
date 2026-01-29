@@ -140,6 +140,8 @@ interface DiagnosticResponse {
   area: string;
   email: string | null;
   timeInCompany: string;
+  directlyInvolved: string;
+  directManager: string;
   completedAt: string | null;
   taskDetails: unknown;
   systemsData: unknown;
