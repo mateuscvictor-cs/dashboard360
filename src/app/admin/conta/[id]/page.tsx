@@ -22,6 +22,7 @@ import {
   MessageSquare,
   ArrowRight,
   Send,
+  Settings,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import { UpcomingDeliverables } from "@/components/upcoming-deliverables";
 import { DeliveryCompletionDialog, SendNPSButton } from "@/components/cs";
 import { CompanySurveysCard } from "@/components/company-surveys-card";
+import { OnboardingTimeline } from "@/components/cliente/onboarding-timeline";
 import { cn, formatDate, formatDateShort, getCadenceLabel, calculateNextDate, getDaysUntil } from "@/lib/utils";
 
 interface Company {
@@ -124,6 +126,28 @@ interface AIInsight {
   actionSuggested: string | null;
 }
 
+interface OnboardingStep {
+  id: string;
+  type: "GROUP_CREATION" | "DIAGNOSTIC_FORM" | "ONBOARDING_MEETING" | "CUSTOM";
+  title: string;
+  description: string | null;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "SKIPPED";
+  order: number;
+  completedAt: string | null;
+  dueDate: string | null;
+}
+
+interface OnboardingData {
+  steps: OnboardingStep[];
+  progress: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    pending: number;
+    percentage: number;
+  };
+}
+
 const healthStatusConfig: Record<string, { label: string; color: string }> = {
   HEALTHY: { label: "Saudável", color: "bg-emerald-500/10 text-emerald-600" },
   ATTENTION: { label: "Atenção", color: "bg-amber-500/10 text-amber-600" },
@@ -152,12 +176,14 @@ export default function AccountPage() {
   const params = useParams();
   const id = params.id as string;
   const [company, setCompany] = useState<Company | null>(null);
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completingDelivery, setCompletingDelivery] = useState<Delivery | null>(null);
 
   useEffect(() => {
     fetchCompany();
+    fetchOnboarding();
   }, [id]);
 
   const fetchCompany = async () => {
@@ -176,6 +202,27 @@ export default function AccountPage() {
       setError("Erro de conexão");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOnboarding = async () => {
+    try {
+      const response = await fetch(`/api/cs/empresas/${id}/onboarding`);
+      if (response.ok) {
+        const data = await response.json();
+        setOnboardingData(data);
+      } else {
+        setOnboardingData({
+          steps: [],
+          progress: { total: 0, completed: 0, inProgress: 0, pending: 0, percentage: 0 },
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao buscar onboarding:", err);
+      setOnboardingData({
+        steps: [],
+        progress: { total: 0, completed: 0, inProgress: 0, pending: 0, percentage: 0 },
+      });
     }
   };
 
@@ -283,6 +330,12 @@ export default function AccountPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link href={`/admin/conta/${company.id}/onboarding`}>
+              <Button variant="outline" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Onboarding
+              </Button>
+            </Link>
             <SendNPSButton
               companyId={company.id}
               companyName={company.name}
@@ -295,6 +348,14 @@ export default function AccountPage() {
             </Link>
           </div>
         </div>
+
+        {onboardingData && (
+          <OnboardingTimeline
+            steps={onboardingData.steps}
+            deliveries={company.deliveries.filter(d => d.status !== "COMPLETED")}
+            progress={onboardingData.progress}
+          />
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>

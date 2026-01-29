@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationBell } from "@/components/notifications";
+import { OnboardingTimeline } from "@/components/cliente/onboarding-timeline";
 import { cn, formatDate } from "@/lib/utils";
 
 type Delivery = {
@@ -62,6 +63,28 @@ type SupportContact = {
   email: string;
 };
 
+type OnboardingStep = {
+  id: string;
+  type: "GROUP_CREATION" | "DIAGNOSTIC_FORM" | "ONBOARDING_MEETING" | "CUSTOM";
+  title: string;
+  description: string | null;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "SKIPPED";
+  order: number;
+  completedAt: string | null;
+  dueDate: string | null;
+};
+
+type OnboardingData = {
+  steps: OnboardingStep[];
+  progress: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    pending: number;
+    percentage: number;
+  };
+};
+
 type DashboardData = {
   companyName: string;
   logo: string | null;
@@ -91,25 +114,44 @@ type DashboardData = {
 
 export default function ClienteDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDelivery, setSelectedDelivery] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
-    async function fetchDashboard() {
+    async function fetchData() {
       try {
-        const response = await fetch("/api/cliente/dashboard");
-        if (response.ok) {
-          const dashboardData = await response.json();
+        const [dashboardRes, onboardingRes] = await Promise.all([
+          fetch("/api/cliente/dashboard"),
+          fetch("/api/cliente/onboarding"),
+        ]);
+
+        if (dashboardRes.ok) {
+          const dashboardData = await dashboardRes.json();
           setData(dashboardData);
         }
+
+        if (onboardingRes.ok) {
+          const onboarding = await onboardingRes.json();
+          setOnboardingData(onboarding);
+        } else {
+          setOnboardingData({
+            steps: [],
+            progress: { total: 0, completed: 0, inProgress: 0, pending: 0, percentage: 0 },
+          });
+        }
       } catch (error) {
-        console.error("Erro ao buscar dashboard:", error);
+        console.error("Erro ao buscar dados:", error);
+        setOnboardingData({
+          steps: [],
+          progress: { total: 0, completed: 0, inProgress: 0, pending: 0, percentage: 0 },
+        });
       } finally {
         setLoading(false);
       }
     }
-    fetchDashboard();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -167,6 +209,14 @@ export default function ClienteDashboardPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
+        {onboardingData && (
+          <OnboardingTimeline
+            steps={onboardingData.steps}
+            deliveries={data.currentDeliveries}
+            progress={onboardingData.progress}
+          />
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
             label="Progresso Geral"

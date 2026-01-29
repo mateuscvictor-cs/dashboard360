@@ -464,6 +464,12 @@ export default function CSEmpresaDetalhePage() {
 
         {company.canEdit && (
           <div className="flex gap-2">
+            <Link href={`/cs/empresas/${id}/onboarding`}>
+              <Button variant="outline" className="gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Onboarding
+              </Button>
+            </Link>
             <Button onClick={() => openEventModal("workshop")} className="gap-2">
               <GraduationCap className="h-4 w-4" />
               Novo Workshop

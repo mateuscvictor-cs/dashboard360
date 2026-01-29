@@ -58,6 +58,8 @@ export async function POST(request: Request) {
         segment: body.segment,
         plan: body.plan,
         framework: body.framework,
+        billedAmount: body.billedAmount ? parseFloat(body.billedAmount) : 0,
+        cashIn: body.cashIn ? parseFloat(body.cashIn) : 0,
         mrr: body.mrr ? parseFloat(body.mrr) : 0,
         tags: body.tags || [],
         csOwnerId: body.csOwnerId,

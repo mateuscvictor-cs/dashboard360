@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { IntercomProvider } from "@/components/providers/intercom-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <IntercomProvider>{children}</IntercomProvider>
+        </SessionProvider>
       </body>
     </html>
   );

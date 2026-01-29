@@ -92,6 +92,8 @@ interface CompanyData {
   segment: string | null;
   plan: string | null;
   framework: string | null;
+  billedAmount: number;
+  cashIn: number;
   mrr: number;
   tags: string[];
   fathomLink: string | null;
@@ -150,6 +152,8 @@ export default function EditarEmpresaPage() {
     segment: "",
     framework: "",
     frameworkOther: "",
+    billedAmount: "",
+    cashIn: "",
     mrr: "",
     tags: [] as string[],
     csOwner: "",
@@ -184,6 +188,8 @@ export default function EditarEmpresaPage() {
           segment: data.segment || "",
           framework: data.framework || data.plan || "",
           frameworkOther: "",
+          billedAmount: data.billedAmount?.toString() || "",
+          cashIn: data.cashIn?.toString() || "",
           mrr: data.mrr.toString(),
           tags: data.tags || [],
           csOwner: data.csOwner?.name || "",
@@ -411,6 +417,8 @@ export default function EditarEmpresaPage() {
           name: formData.name,
           segment: formData.segment,
           framework: formData.framework === "Outro" ? formData.frameworkOther : formData.framework,
+          billedAmount: formData.billedAmount,
+          cashIn: formData.cashIn,
           mrr: formData.mrr,
           tags: formData.tags,
           fathomLink: formData.fathomLink,
@@ -566,19 +574,71 @@ export default function EditarEmpresaPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                  <DollarSign className="h-4 w-4" />
-                  MRR
-                </label>
-                <input
-                  type="number"
-                  value={formData.mrr}
-                  onChange={(e) => setFormData({ ...formData, mrr: e.target.value })}
-                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  step="0.01"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    Faturado (Valor Total)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.billedAmount}
+                    onChange={(e) => setFormData({ ...formData, billedAmount: e.target.value })}
+                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    Cash In (Entrada)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.cashIn}
+                    onChange={(e) => setFormData({ ...formData, cashIn: e.target.value })}
+                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    MRR
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.mrr}
+                    onChange={(e) => setFormData({ ...formData, mrr: e.target.value })}
+                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
+
+              {formData.billedAmount && parseFloat(formData.billedAmount) > 0 && (
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Cash In / Faturado</span>
+                    <span className="text-sm font-semibold text-primary">
+                      {((parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ 
+                        width: `${Math.min((parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100, 100)}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-sm font-medium mb-2 block flex items-center gap-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -77,8 +77,6 @@ interface Contact {
 
 const segments = ["Enterprise", "Mid-Market", "SMB", "Startup"];
 const frameworks = ["ICIA", "COPA", "ICIA Outsourcing", "CNH da IA", "Outro"];
-const squads = ["Squad Alpha", "Squad Beta", "Squad Gamma"];
-const csOwners = ["Carlos Silva", "Ana Rodrigues", "Pedro Santos"];
 const impacts = [
   { value: "high", label: "Alto" },
   { value: "medium", label: "Médio" },
@@ -112,6 +110,9 @@ const wizardSteps = [
 
 type ImportMode = "manual" | "contract";
 
+type CSOwnerOption = { id: string; name: string };
+type SquadOption = { id: string; name: string };
+
 export default function NovaEmpresaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -124,12 +125,45 @@ export default function NovaEmpresaPage() {
   const [extractError, setExtractError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   
+  const [csOwners, setCsOwners] = useState<CSOwnerOption[]>([]);
+  const [squads, setSquads] = useState<SquadOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [csResponse, squadResponse] = await Promise.all([
+          fetch("/api/cs-owners"),
+          fetch("/api/squads"),
+        ]);
+        
+        if (csResponse.ok) {
+          const csData = await csResponse.json();
+          setCsOwners(csData.map((cs: { id: string; name: string }) => ({ id: cs.id, name: cs.name })));
+        }
+        
+        if (squadResponse.ok) {
+          const squadData = await squadResponse.json();
+          setSquads(squadData.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+        }
+      } catch (error) {
+        console.error("Erro ao buscar opções:", error);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+    
+    fetchOptions();
+  }, []);
+  
   const [formData, setFormData] = useState({
     name: "",
     cnpj: "",
     segment: "",
     framework: "",
     frameworkOther: "",
+    billedAmount: "",
+    cashIn: "",
     mrr: "",
     tags: [] as string[],
     csOwner: "",
@@ -776,11 +810,41 @@ export default function NovaEmpresaPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block flex items-center gap-1">
                     <DollarSign className="h-4 w-4" />
-                    MRR Inicial
+                    Faturado (Valor Total)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.billedAmount}
+                    onChange={(e) => setFormData({ ...formData, billedAmount: e.target.value })}
+                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="0.00"
+                    step="0.01"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    Cash In (Entrada)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.cashIn}
+                    onChange={(e) => setFormData({ ...formData, cashIn: e.target.value })}
+                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="0.00"
+                    step="0.01"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    MRR
                   </label>
                   <input
                     type="number"
@@ -791,19 +855,38 @@ export default function NovaEmpresaPage() {
                     step="0.01"
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Status Inicial</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  >
-                    <option value="active">Ativo</option>
-                    <option value="pending">Pendente</option>
-                    <option value="onboarding">Onboarding</option>
-                  </select>
+              {formData.billedAmount && parseFloat(formData.billedAmount) > 0 && (
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Cash In / Faturado</span>
+                    <span className="text-sm font-semibold text-primary">
+                      {((parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ 
+                        width: `${Math.min((parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100, 100)}%` 
+                      }}
+                    />
+                  </div>
                 </div>
+              )}
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status Inicial</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="active">Ativo</option>
+                  <option value="pending">Pendente</option>
+                  <option value="onboarding">Onboarding</option>
+                </select>
               </div>
 
               <div>
@@ -870,11 +953,12 @@ export default function NovaEmpresaPage() {
                   value={formData.csOwner}
                   onChange={(e) => setFormData({ ...formData, csOwner: e.target.value })}
                   className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  disabled={loadingOptions}
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">{loadingOptions ? "Carregando..." : "Selecione..."}</option>
                   {csOwners.map((owner) => (
-                    <option key={owner} value={owner}>
-                      {owner}
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name}
                     </option>
                   ))}
                 </select>
@@ -886,11 +970,12 @@ export default function NovaEmpresaPage() {
                   value={formData.squad}
                   onChange={(e) => setFormData({ ...formData, squad: e.target.value })}
                   className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  disabled={loadingOptions}
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">{loadingOptions ? "Carregando..." : "Selecione..."}</option>
                   {squads.map((squad) => (
-                    <option key={squad} value={squad}>
-                      {squad}
+                    <option key={squad.id} value={squad.id}>
+                      {squad.name}
                     </option>
                   ))}
                 </select>
@@ -989,9 +1074,9 @@ export default function NovaEmpresaPage() {
                           className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                         >
                           <option value="">Selecione...</option>
-                          {squads.map((squad) => (
-                            <option key={squad} value={squad}>
-                              {squad}
+                          {csOwners.map((cs) => (
+                            <option key={cs.id} value={cs.id}>
+                              {cs.name}
                             </option>
                           ))}
                         </select>

@@ -234,6 +234,20 @@ enum ClientApprovalStatus {
   CHANGES_REQUESTED
 }
 
+enum OnboardingStepType {
+  GROUP_CREATION
+  DIAGNOSTIC_FORM
+  ONBOARDING_MEETING
+  CUSTOM
+}
+
+enum OnboardingStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
 enum NotificationType {
   DEPENDENCY_ADDED
   DEPENDENCY_OVERDUE
@@ -405,6 +419,8 @@ model Company {
   logo            String?
   segment         String?
   plan            String?
+  billedAmount    Float        @default(0)
+  cashIn          Float        @default(0)
   mrr             Float        @default(0)
   healthScore     Int          @default(100)
   healthStatus    HealthStatus @default(HEALTHY)
@@ -455,6 +471,7 @@ model Company {
   clientResources  ClientResource[]
   calendlyBookings CalendlyBooking[]
   notifications    Notification[]
+  onboardingSteps  OnboardingStep[]
 
   @@map("companies")
 }
@@ -553,6 +570,25 @@ model TimelineEvent {
   companyId String
 
   @@map("timeline_events")
+}
+
+model OnboardingStep {
+  id          String               @id @default(cuid())
+  type        OnboardingStepType
+  title       String
+  description String?
+  status      OnboardingStepStatus @default(PENDING)
+  order       Int
+  completedAt DateTime?
+  dueDate     DateTime?
+  metadata    Json?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("onboarding_steps")
 }
 
 model Delivery {

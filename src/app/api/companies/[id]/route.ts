@@ -84,6 +84,8 @@ export async function PATCH(
         segment: body.segment,
         plan: body.plan,
         framework: body.framework,
+        billedAmount: body.billedAmount ? parseFloat(body.billedAmount) : undefined,
+        cashIn: body.cashIn ? parseFloat(body.cashIn) : undefined,
         mrr: body.mrr ? parseFloat(body.mrr) : undefined,
         tags: body.tags,
         csOwnerId: body.csOwnerId,
