@@ -87,7 +87,7 @@ interface AnalysisResult {
   rawAnalysis: string;
 }
 
-function formatResponseForAnalysis(response: DiagnosticResponse & { user: { name: string | null; email: string } }): string {
+function formatResponseForAnalysis(response: DiagnosticResponse & { user: { name: string | null; email: string } | null }): string {
   const taskDetails = response.taskDetails as TaskDetail[] | null;
   const systemsData = response.systemsData as SystemsData | null;
   const priorityData = response.priorityData as PriorityData | null;
@@ -160,7 +160,7 @@ ${priorityData.finalObservation ? `- Observação final: ${priorityData.finalObs
 export const diagnosticAIService = {
   async analyzeDiagnostic(
     companyName: string,
-    responses: (DiagnosticResponse & { user: { id: string; name: string | null; email: string } })[]
+    responses: (DiagnosticResponse & { user: { id: string; name: string | null; email: string } | null })[]
   ): Promise<AnalysisResult> {
     const formattedResponses = responses.map(formatResponseForAnalysis).join("\n---\n");
 
