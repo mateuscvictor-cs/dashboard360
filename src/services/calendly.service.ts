@@ -158,7 +158,7 @@ export const calendlyService = {
       throw new Error("CS Owner não configurado no Calendly");
     }
 
-    const eventTypes = await this.getEventTypes(config.calendlyUserUri);
+    const eventTypes = await this.getEventTypes(config.calendlyUserUri ?? undefined);
     const eventType = eventTypes[0];
     if (!eventType) {
       throw new Error("Nenhum tipo de evento disponível no Calendly");
