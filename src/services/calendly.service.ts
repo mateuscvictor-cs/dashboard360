@@ -176,7 +176,7 @@ export const calendlyService = {
     };
     queryParams.set("metadata", JSON.stringify(metadata));
 
-    const baseUrl = eventType.scheduling_url;
+    const baseUrl = eventType.schedulingUrl;
     return `${baseUrl}?${queryParams.toString()}`;
   },
 
