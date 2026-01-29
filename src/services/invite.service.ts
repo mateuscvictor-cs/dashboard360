@@ -21,7 +21,7 @@ export type CreateInviteData = {
 };
 
 export type InviteWithRelations = Invite & {
-  company: { id: string; name: string } | null;
+  company: { id: string; name: string; memberInviteLimit?: number } | null;
   invitedBy: { id: string; name: string | null; email: string };
 };
 
@@ -44,6 +44,13 @@ export const inviteService = {
 
     if (existingUser) {
       throw new Error("Já existe um usuário cadastrado com este email");
+    }
+
+    if (data.type === "COMPANY_MEMBER" && data.companyId) {
+      const canInvite = await this.canInviteMember(data.companyId);
+      if (!canInvite.allowed) {
+        throw new Error(canInvite.reason || "Limite de convites atingido");
+      }
     }
 
     const token = generateToken();
@@ -71,6 +78,97 @@ export const inviteService = {
     );
 
     return invite;
+  },
+
+  async canInviteMember(companyId: string): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { memberInviteLimit: true },
+    });
+
+    if (!company) {
+      return { allowed: false, reason: "Empresa não encontrada" };
+    }
+
+    if (company.memberInviteLimit <= 0) {
+      return { allowed: false, reason: "Empresa não possui limite de convites configurado", remaining: 0 };
+    }
+
+    const currentMembers = await prisma.user.count({
+      where: {
+        companyId,
+        role: "CLIENT_MEMBER",
+      },
+    });
+
+    const pendingInvites = await prisma.invite.count({
+      where: {
+        companyId,
+        type: "COMPANY_MEMBER",
+        status: "PENDING",
+      },
+    });
+
+    const totalUsed = currentMembers + pendingInvites;
+    const remaining = company.memberInviteLimit - totalUsed;
+
+    if (remaining <= 0) {
+      return { 
+        allowed: false, 
+        reason: `Limite de ${company.memberInviteLimit} membros atingido`,
+        remaining: 0
+      };
+    }
+
+    return { allowed: true, remaining };
+  },
+
+  async getMemberInviteStats(companyId: string): Promise<{
+    limit: number;
+    used: number;
+    pending: number;
+    remaining: number;
+  }> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { memberInviteLimit: true },
+    });
+
+    const currentMembers = await prisma.user.count({
+      where: {
+        companyId,
+        role: "CLIENT_MEMBER",
+      },
+    });
+
+    const pendingInvites = await prisma.invite.count({
+      where: {
+        companyId,
+        type: "COMPANY_MEMBER",
+        status: "PENDING",
+      },
+    });
+
+    const limit = company?.memberInviteLimit || 0;
+    const used = currentMembers;
+    const pending = pendingInvites;
+    const remaining = Math.max(0, limit - used - pending);
+
+    return { limit, used, pending, remaining };
+  },
+
+  async getCompanyInvites(companyId: string): Promise<InviteWithRelations[]> {
+    return prisma.invite.findMany({
+      where: {
+        companyId,
+        type: "COMPANY_MEMBER",
+      },
+      include: {
+        company: { select: { id: true, name: true } },
+        invitedBy: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   },
 
   async findAll(filters?: {
@@ -148,10 +246,11 @@ export const inviteService = {
 
     const invite = validation.invite;
 
-    const roleMap: Record<InviteType, "CLIENT" | "ADMIN" | "CS_OWNER"> = {
+    const roleMap: Record<InviteType, "CLIENT" | "ADMIN" | "CS_OWNER" | "CLIENT_MEMBER"> = {
       COMPANY_ADMIN: "CLIENT",
       MEMBER_ADMIN: "ADMIN",
       MEMBER_CS: "CS_OWNER",
+      COMPANY_MEMBER: "CLIENT_MEMBER",
     };
 
     const role = roleMap[invite.type];
@@ -165,7 +264,7 @@ export const inviteService = {
           emailVerified: new Date(),
           password: userData.passwordHash,
           image: userData.image || null,
-          companyId: invite.type === "COMPANY_ADMIN" ? invite.companyId : null,
+          companyId: (invite.type === "COMPANY_ADMIN" || invite.type === "COMPANY_MEMBER") ? invite.companyId : null,
         },
       });
 

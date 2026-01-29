@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
 
-const PUBLIC_ROUTES = ["/", "/login", "/registro", "/esqueci-senha", "/redefinir-senha", "/verificar-email", "/convite"];
+const PUBLIC_ROUTES = ["/", "/login", "/registro", "/esqueci-senha", "/redefinir-senha", "/verificar-email", "/convite", "/diagnostico"];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`));

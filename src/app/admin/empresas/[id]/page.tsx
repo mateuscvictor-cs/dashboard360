@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Plus,
@@ -21,13 +22,30 @@ import {
   Users2,
   AlertTriangle,
   Loader2,
+  Calendar,
+  TrendingUp,
+  Clock,
+  ExternalLink,
+  Settings,
+  ClipboardList,
+  FolderOpen,
 } from "lucide-react";
-import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { calculateNextDate, formatDateShort } from "@/lib/utils";
-import { LogoUpload, ResourceManager } from "@/components/company";
+import { LogoUpload, ResourceManager, DiagnosticManager } from "@/components/company";
 
 type CadenceType = "daily" | "weekly" | "biweekly" | "monthly" | "custom" | "";
 
@@ -68,8 +86,6 @@ interface Hotseat {
 
 const segments = ["Enterprise", "Mid-Market", "SMB", "Startup"];
 const frameworks = ["ICIA", "COPA", "ICIA Outsourcing", "CNH da IA", "Outro"];
-const squads = ["Squad Alpha", "Squad Beta", "Squad Gamma"];
-const csOwners = ["Carlos Silva", "Ana Rodrigues", "Pedro Santos"];
 const impacts = [
   { value: "high", label: "Alto" },
   { value: "medium", label: "Médio" },
@@ -99,7 +115,9 @@ interface CompanyData {
   fathomLink: string | null;
   contractStart: string | null;
   contractEnd: string | null;
-  csOwner: { id: string; name: string } | null;
+  healthScore: number;
+  healthStatus: string;
+  csOwner: { id: string; name: string; user?: { email: string } } | null;
   squad: { id: string; name: string } | null;
   contacts: Array<{
     id: string;
@@ -136,6 +154,21 @@ interface CompanyData {
     participants: number;
     cadence: string | null;
   }>;
+  _count?: {
+    users: number;
+    deliveries: number;
+  };
+}
+
+interface CsOwnerOption {
+  id: string;
+  name: string;
+  user: { id: string; email: string };
+}
+
+interface SquadOption {
+  id: string;
+  name: string;
 }
 
 export default function EditarEmpresaPage() {
@@ -146,6 +179,8 @@ export default function EditarEmpresaPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [company, setCompany] = useState<CompanyData | null>(null);
+  const [csOwners, setCsOwners] = useState<CsOwnerOption[]>([]);
+  const [squads, setSquads] = useState<SquadOption[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -156,11 +191,10 @@ export default function EditarEmpresaPage() {
     cashIn: "",
     mrr: "",
     tags: [] as string[],
-    csOwner: "",
-    squad: "",
+    csOwnerId: "",
+    squadId: "",
     startDate: "",
     expectedCompletion: "",
-    status: "active",
     contractFile: null as File | null,
     proposalFile: null as File | null,
     fathomLink: "",
@@ -173,14 +207,19 @@ export default function EditarEmpresaPage() {
   const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
-    fetchCompany();
+    fetchData();
   }, [id]);
 
-  const fetchCompany = async () => {
+  const fetchData = async () => {
     try {
-      const response = await fetch(`/api/companies/${id}`);
-      if (response.ok) {
-        const data: CompanyData = await response.json();
+      const [companyRes, csOwnersRes, squadsRes] = await Promise.all([
+        fetch(`/api/companies/${id}`),
+        fetch("/api/cs-owners"),
+        fetch("/api/squads"),
+      ]);
+
+      if (companyRes.ok) {
+        const data: CompanyData = await companyRes.json();
         setCompany(data);
         
         setFormData({
@@ -192,11 +231,10 @@ export default function EditarEmpresaPage() {
           cashIn: data.cashIn?.toString() || "",
           mrr: data.mrr.toString(),
           tags: data.tags || [],
-          csOwner: data.csOwner?.name || "",
-          squad: data.squad?.name || "",
+          csOwnerId: data.csOwner?.id || "",
+          squadId: data.squad?.id || "",
           startDate: data.contractStart?.split("T")[0] || "",
           expectedCompletion: data.contractEnd?.split("T")[0] || "",
-          status: "active",
           contractFile: null,
           proposalFile: null,
           fathomLink: data.fathomLink || "",
@@ -244,10 +282,16 @@ export default function EditarEmpresaPage() {
             isDecisionMaker: c.isDecisionMaker,
           }))
         );
-      } else if (response.status === 404) {
+      } else if (companyRes.status === 404) {
         setError("Empresa não encontrada");
-      } else {
-        setError("Erro ao carregar dados");
+      }
+
+      if (csOwnersRes.ok) {
+        setCsOwners(await csOwnersRes.json());
+      }
+
+      if (squadsRes.ok) {
+        setSquads(await squadsRes.json());
       }
     } catch (err) {
       console.error("Erro:", err);
@@ -257,125 +301,32 @@ export default function EditarEmpresaPage() {
     }
   };
 
-  if (initialLoading) {
-    return (
-      <div className="flex flex-col h-full">
-        <Header title="Carregando..." subtitle="" showFilters={false} />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !company) {
-    return (
-      <div className="flex flex-col h-full">
-        <Header title="Empresa" subtitle="" showFilters={false} />
-        <div className="flex-1 flex items-center justify-center">
-          <Card className="max-w-md">
-            <CardContent className="flex flex-col items-center py-8">
-              <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
-              <p className="text-center text-muted-foreground mb-4">{error}</p>
-              <Link href="/admin/empresas">
-                <Button variant="outline">Voltar para Empresas</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const addDelivery = () => {
-    setDeliveries([
-      ...deliveries,
-      {
-        title: "",
-        description: "",
-        dueDate: "",
-        assignee: "",
-        impact: "medium",
-        cadence: "",
-      },
-    ]);
-  };
-
-  const removeDelivery = (index: number) => {
-    setDeliveries(deliveries.filter((_, i) => i !== index));
-  };
-
+  const addDelivery = () => setDeliveries([...deliveries, { title: "", description: "", dueDate: "", assignee: "", impact: "medium", cadence: "" }]);
+  const removeDelivery = (index: number) => setDeliveries(deliveries.filter((_, i) => i !== index));
   const updateDelivery = (index: number, field: keyof Delivery, value: string) => {
     const updated = [...deliveries];
     updated[index] = { ...updated[index], [field]: value };
     setDeliveries(updated);
   };
 
-  const addWorkshop = () => {
-    setWorkshops([
-      ...workshops,
-      {
-        title: "",
-        description: "",
-        scheduledDate: "",
-        duration: "",
-        participants: "",
-        cadence: "",
-      },
-    ]);
-  };
-
-  const removeWorkshop = (index: number) => {
-    setWorkshops(workshops.filter((_, i) => i !== index));
-  };
-
+  const addWorkshop = () => setWorkshops([...workshops, { title: "", description: "", scheduledDate: "", duration: "", participants: "", cadence: "" }]);
+  const removeWorkshop = (index: number) => setWorkshops(workshops.filter((_, i) => i !== index));
   const updateWorkshop = (index: number, field: keyof Workshop, value: string) => {
     const updated = [...workshops];
     updated[index] = { ...updated[index], [field]: value };
     setWorkshops(updated);
   };
 
-  const addHotseat = () => {
-    setHotseats([
-      ...hotseats,
-      {
-        title: "",
-        description: "",
-        scheduledDate: "",
-        duration: "",
-        participants: "",
-        cadence: "",
-      },
-    ]);
-  };
-
-  const removeHotseat = (index: number) => {
-    setHotseats(hotseats.filter((_, i) => i !== index));
-  };
-
+  const addHotseat = () => setHotseats([...hotseats, { title: "", description: "", scheduledDate: "", duration: "", participants: "", cadence: "" }]);
+  const removeHotseat = (index: number) => setHotseats(hotseats.filter((_, i) => i !== index));
   const updateHotseat = (index: number, field: keyof Hotseat, value: string) => {
     const updated = [...hotseats];
     updated[index] = { ...updated[index], [field]: value };
     setHotseats(updated);
   };
 
-  const addContact = () => {
-    setContacts([
-      ...contacts,
-      {
-        name: "",
-        role: "",
-        email: "",
-        phone: "",
-        isDecisionMaker: false,
-      },
-    ]);
-  };
-
-  const removeContact = (index: number) => {
-    setContacts(contacts.filter((_, i) => i !== index));
-  };
-
+  const addContact = () => setContacts([...contacts, { name: "", role: "", email: "", phone: "", isDecisionMaker: false }]);
+  const removeContact = (index: number) => setContacts(contacts.filter((_, i) => i !== index));
   const updateContact = (index: number, field: keyof Contact, value: string | boolean) => {
     const updated = [...contacts];
     updated[index] = { ...updated[index], [field]: value };
@@ -384,29 +335,16 @@ export default function EditarEmpresaPage() {
 
   const addTag = () => {
     if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData({
-        ...formData,
-        tags: [...formData.tags, tagInput.trim()],
-      });
+      setFormData({ ...formData, tags: [...formData.tags, tagInput.trim()] });
       setTagInput("");
     }
   };
 
-  const removeTag = (tag: string) => {
-    setFormData({
-      ...formData,
-      tags: formData.tags.filter((t) => t !== tag),
-    });
-  };
+  const removeTag = (tag: string) => setFormData({ ...formData, tags: formData.tags.filter((t) => t !== tag) });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name) {
-      alert("Preencha o nome da empresa");
-      return;
-    }
-
+    if (!formData.name) return alert("Preencha o nome da empresa");
     setLoading(true);
 
     try {
@@ -422,65 +360,14 @@ export default function EditarEmpresaPage() {
           mrr: formData.mrr,
           tags: formData.tags,
           fathomLink: formData.fathomLink,
+          csOwnerId: formData.csOwnerId || undefined,
+          squadId: formData.squadId || undefined,
         }),
       });
 
-      if (!companyResponse.ok) {
-        throw new Error("Erro ao atualizar empresa");
-      }
+      if (!companyResponse.ok) throw new Error("Erro ao atualizar empresa");
 
-      for (const delivery of deliveries) {
-        if (delivery.title) {
-          await fetch(`/api/companies/${id}/deliveries`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: delivery.title,
-              description: delivery.description,
-              dueDate: delivery.dueDate || null,
-              assignee: delivery.assignee || null,
-              impact: delivery.impact.toUpperCase(),
-              cadence: delivery.cadence ? delivery.cadence.toUpperCase() : null,
-            }),
-          });
-        }
-      }
-
-      for (const workshop of workshops) {
-        if (workshop.title && workshop.scheduledDate) {
-          await fetch(`/api/companies/${id}/workshops`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: workshop.title,
-              description: workshop.description,
-              date: workshop.scheduledDate,
-              duration: workshop.duration,
-              participants: parseInt(workshop.participants) || 0,
-              cadence: workshop.cadence ? workshop.cadence.toUpperCase() : null,
-            }),
-          });
-        }
-      }
-
-      for (const hotseat of hotseats) {
-        if (hotseat.title && hotseat.scheduledDate) {
-          await fetch(`/api/companies/${id}/hotseats`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: hotseat.title,
-              description: hotseat.description,
-              date: hotseat.scheduledDate,
-              duration: hotseat.duration,
-              participants: parseInt(hotseat.participants) || 0,
-              cadence: hotseat.cadence ? hotseat.cadence.toUpperCase() : null,
-            }),
-          });
-        }
-      }
-
-      router.push(`/admin/conta/${id}`);
+      router.push("/admin/empresas");
     } catch (error) {
       console.error("Erro ao salvar:", error);
       alert("Erro ao salvar alterações");
@@ -489,858 +376,569 @@ export default function EditarEmpresaPage() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      <Header title={`Editar: ${company.name}`} subtitle="Atualize as informações da empresa" showFilters={false} />
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  };
 
-      <div className="flex-1 overflow-auto p-6">
-        <form onSubmit={handleSubmit} className="max-w-7xl space-y-6">
-          <div className="flex items-center gap-4 mb-6">
+  const getHealthColor = (status: string) => {
+    switch (status) {
+      case "HEALTHY": return "text-green-500 bg-green-500/10";
+      case "AT_RISK": return "text-yellow-500 bg-yellow-500/10";
+      case "CRITICAL": return "text-red-500 bg-red-500/10";
+      default: return "text-muted-foreground bg-muted";
+    }
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !company) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="max-w-md">
+          <CardContent className="flex flex-col items-center py-8">
+            <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+            <p className="text-center text-muted-foreground mb-4">{error}</p>
             <Link href="/admin/empresas">
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
+              <Button variant="outline">Voltar para Empresas</Button>
             </Link>
-            <div>
-              <h2 className="text-xl font-bold">Dados da Empresa</h2>
-              <p className="text-sm text-muted-foreground">
-                Atualize as informações e configurações
-              </p>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    <CardTitle>Dados Básicos</CardTitle>
-                  </div>
-                  <CardDescription>Informações principais da empresa</CardDescription>
-                </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Nome da Empresa <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
+  const cashInPercentage = formData.billedAmount && parseFloat(formData.billedAmount) > 0
+    ? (parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100
+    : 0;
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Segmento</label>
-                  <select
-                    value={formData.segment}
-                    onChange={(e) => setFormData({ ...formData, segment: e.target.value })}
-                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  >
-                    {segments.map((seg) => (
-                      <option key={seg} value={seg}>
-                        {seg}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Framework</label>
-                  <select
-                    value={formData.framework}
-                    onChange={(e) => setFormData({ ...formData, framework: e.target.value, frameworkOther: e.target.value === "Outro" ? formData.frameworkOther : "" })}
-                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  >
-                    {frameworks.map((fw) => (
-                      <option key={fw} value={fw}>
-                        {fw}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.framework === "Outro" && (
-                    <input
-                      type="text"
-                      value={formData.frameworkOther}
-                      onChange={(e) => setFormData({ ...formData, frameworkOther: e.target.value })}
-                      className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary mt-2"
-                      placeholder="Especifique o framework"
-                    />
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/admin/empresas">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-12 w-12 border-2 border-primary/20">
+                  {company.logo ? (
+                    <AvatarImage src={company.logo} alt={company.name} />
+                  ) : (
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {company.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
                   )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                </Avatar>
                 <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <DollarSign className="h-4 w-4" />
-                    Faturado (Valor Total)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.billedAmount}
-                    onChange={(e) => setFormData({ ...formData, billedAmount: e.target.value })}
-                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <DollarSign className="h-4 w-4" />
-                    Cash In (Entrada)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.cashIn}
-                    onChange={(e) => setFormData({ ...formData, cashIn: e.target.value })}
-                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <DollarSign className="h-4 w-4" />
-                    MRR
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.mrr}
-                    onChange={(e) => setFormData({ ...formData, mrr: e.target.value })}
-                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-
-              {formData.billedAmount && parseFloat(formData.billedAmount) > 0 && (
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Cash In / Faturado</span>
-                    <span className="text-sm font-semibold text-primary">
-                      {((parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100).toFixed(1)}%
+                  <h1 className="text-xl font-bold">{company.name}</h1>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {company.segment && <Badge variant="outline">{company.segment}</Badge>}
+                    {company.framework && <Badge variant="secondary">{company.framework}</Badge>}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getHealthColor(company.healthStatus)}`}>
+                      Health: {company.healthScore}%
                     </span>
                   </div>
-                  <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ 
-                        width: `${Math.min((parseFloat(formData.cashIn || "0") / parseFloat(formData.billedAmount)) * 100, 100)}%` 
-                      }}
-                    />
-                  </div>
                 </div>
-              )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => router.push("/admin/empresas")}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                  <Tag className="h-4 w-4" />
-                  Tags
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addTag();
-                      }
-                    }}
-                    className="flex-1 h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    placeholder="Digite e pressione Enter"
-                  />
-                  <Button type="button" variant="outline" onClick={addTag}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-green-500" />
                 </div>
-                {formData.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="gap-1">
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag)}
-                          className="ml-1 hover:text-danger"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    <CardTitle>Atribuição</CardTitle>
-                  </div>
-                  <CardDescription>Defina responsáveis pelo projeto</CardDescription>
-                </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  CS Owner <span className="text-danger">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.csOwner}
-                  onChange={(e) => setFormData({ ...formData, csOwner: e.target.value })}
-                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  {csOwners.map((owner) => (
-                    <option key={owner} value={owner}>
-                      {owner}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Squad Responsável</label>
-                <select
-                  value={formData.squad}
-                  onChange={(e) => setFormData({ ...formData, squad: e.target.value })}
-                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  {squads.map((squad) => (
-                    <option key={squad} value={squad}>
-                      {squad}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <p className="text-2xl font-bold">{formatCurrency(company.billedAmount)}</p>
+                  <p className="text-xs text-muted-foreground">Valor Faturado</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  <CardTitle>Entregas</CardTitle>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-blue-500" />
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addDelivery} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Adicionar Entrega
-                </Button>
+                <div>
+                  <p className="text-2xl font-bold">{formatCurrency(company.cashIn)}</p>
+                  <p className="text-xs text-muted-foreground">Cash In ({cashInPercentage.toFixed(0)}%)</p>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {deliveries.map((delivery, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border p-4 space-y-3 bg-muted/30"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Entrega #{index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => removeDelivery(index)}
-                      className="h-7 w-7 text-muted-foreground hover:text-danger"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <Clock className="h-5 w-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{formatCurrency(company.mrr)}</p>
+                  <p className="text-xs text-muted-foreground">MRR</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/10 rounded-lg">
+                  <Package className="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{company.deliveries.length}</p>
+                  <p className="text-xs text-muted-foreground">Entregas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-                  <div>
-                    <label className="text-xs font-medium mb-1 block">Título</label>
-                    <input
-                      type="text"
-                      value={delivery.title}
-                      onChange={(e) => updateDelivery(index, "title", e.target.value)}
-                      className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    />
-                  </div>
+        <Tabs defaultValue="dados" className="space-y-6">
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="dados" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Dados
+            </TabsTrigger>
+            <TabsTrigger value="entregas" className="gap-2">
+              <Package className="h-4 w-4" />
+              Entregas ({deliveries.length})
+            </TabsTrigger>
+            <TabsTrigger value="eventos" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Eventos ({workshops.length + hotseats.length})
+            </TabsTrigger>
+            <TabsTrigger value="contatos" className="gap-2">
+              <Users className="h-4 w-4" />
+              Contatos ({contacts.length})
+            </TabsTrigger>
+            <TabsTrigger value="recursos" className="gap-2">
+              <FolderOpen className="h-4 w-4" />
+              Recursos
+            </TabsTrigger>
+            <TabsTrigger value="diagnostico" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Diagnóstico
+            </TabsTrigger>
+          </TabsList>
 
-                  <div>
-                    <label className="text-xs font-medium mb-1 block">Descrição</label>
-                    <textarea
-                      value={delivery.description}
-                      onChange={(e) => updateDelivery(index, "description", e.target.value)}
-                      className="w-full min-h-[60px] rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <TabsContent value="dados">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-primary" />
+                      Informações Básicas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div>
-                      <label className="text-xs font-medium mb-1 block">Prazo</label>
-                      <input
-                        type="date"
-                        value={delivery.dueDate}
-                        onChange={(e) => updateDelivery(index, "dueDate", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      <label className="text-sm font-medium mb-2 block">Nome da Empresa *</label>
+                      <Input
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Nome da empresa"
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Segmento</label>
+                        <Select value={formData.segment} onValueChange={(v) => setFormData({ ...formData, segment: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            {segments.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Framework</label>
+                        <Select value={formData.framework} onValueChange={(v) => setFormData({ ...formData, framework: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            {frameworks.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">Responsável</label>
-                      <select
-                        value={delivery.assignee}
-                        onChange={(e) => updateDelivery(index, "assignee", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      >
-                        <option value="">Selecione...</option>
-                        {squads.map((squad) => (
-                          <option key={squad} value={squad}>
-                            {squad}
-                          </option>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      Financeiro
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Valor Faturado</label>
+                        <Input
+                          type="number"
+                          value={formData.billedAmount}
+                          onChange={(e) => setFormData({ ...formData, billedAmount: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Cash In</label>
+                        <Input
+                          type="number"
+                          value={formData.cashIn}
+                          onChange={(e) => setFormData({ ...formData, cashIn: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">MRR</label>
+                        <Input
+                          type="number"
+                          value={formData.mrr}
+                          onChange={(e) => setFormData({ ...formData, mrr: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    {cashInPercentage > 0 && (
+                      <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Progresso Cash In</span>
+                          <span className="font-medium">{cashInPercentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(cashInPercentage, 100)}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      Atribuição
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">CS Owner</label>
+                        <Select value={formData.csOwnerId} onValueChange={(v) => setFormData({ ...formData, csOwnerId: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            {csOwners.map((cs) => <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Squad</label>
+                        <Select value={formData.squadId} onValueChange={(v) => setFormData({ ...formData, squadId: v })}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            {squads.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Tag className="h-5 w-5 text-primary" />
+                      Tags
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2 mb-3">
+                      <Input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                        placeholder="Adicionar tag..."
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" onClick={addTag}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {formData.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {formData.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="gap-1">
+                            {tag}
+                            <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
                         ))}
-                      </select>
-                    </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Logo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <LogoUpload companyId={id} currentLogo={company?.logo || null} />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <LinkIcon className="h-5 w-5 text-primary" />
+                      Links
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div>
-                      <label className="text-xs font-medium mb-1 block">Impacto</label>
-                      <select
-                        value={delivery.impact}
-                        onChange={(e) => updateDelivery(index, "impact", e.target.value as "high" | "medium" | "low")}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      >
-                        {impacts.map((imp) => (
-                          <option key={imp.value} value={imp.value}>
-                            {imp.label}
-                          </option>
-                        ))}
-                      </select>
+                      <label className="text-sm font-medium mb-2 block">Link Fathom</label>
+                      <Input
+                        value={formData.fathomLink}
+                        onChange={(e) => setFormData({ ...formData, fathomLink: e.target.value })}
+                        placeholder="https://fathom.video/..."
+                      />
                     </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
 
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">Cadência</label>
-                      <select
-                        value={delivery.cadence}
-                        onChange={(e) => updateDelivery(index, "cadence", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      >
-                        {cadences.map((cad) => (
-                          <option key={cad.value} value={cad.value}>
-                            {cad.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {delivery.dueDate && delivery.cadence && (
-                    <div className="mt-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">Próxima entrega prevista:</span>{" "}
-                        {formatDateShort(calculateNextDate(delivery.dueDate, delivery.cadence.toUpperCase()) || new Date())}
-                      </p>
-                    </div>
-                  )}
+          <TabsContent value="entregas">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    Entregas
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={addDelivery} className="gap-2">
+                    <Plus className="h-4 w-4" /> Adicionar
+                  </Button>
                 </div>
-              ))}
-            </CardContent>
-              </Card>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {deliveries.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Nenhuma entrega cadastrada</p>
+                  </div>
+                ) : deliveries.map((delivery, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border p-4 space-y-3 bg-muted/30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Entrega #{index + 1}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeDelivery(index)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Input
+                      value={delivery.title}
+                      onChange={(e) => updateDelivery(index, "title", e.target.value)}
+                      placeholder="Título da entrega"
+                    />
+                    <Textarea
+                      value={delivery.description}
+                      onChange={(e) => updateDelivery(index, "description", e.target.value)}
+                      placeholder="Descrição..."
+                      className="min-h-[60px]"
+                    />
+                    <div className="grid grid-cols-4 gap-3">
+                      <Input type="date" value={delivery.dueDate} onChange={(e) => updateDelivery(index, "dueDate", e.target.value)} />
+                      <Select value={delivery.impact} onValueChange={(v) => updateDelivery(index, "impact", v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {impacts.map((i) => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={delivery.cadence} onValueChange={(v) => updateDelivery(index, "cadence", v)}>
+                        <SelectTrigger><SelectValue placeholder="Cadência" /></SelectTrigger>
+                        <SelectContent>
+                          {cadences.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Input value={delivery.assignee} onChange={(e) => updateDelivery(index, "assignee", e.target.value)} placeholder="Responsável" />
+                    </div>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
+          <TabsContent value="eventos">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2">
                       <GraduationCap className="h-5 w-5 text-primary" />
-                      <CardTitle>Workshops</CardTitle>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={addWorkshop} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Adicionar Workshop
+                      Workshops
+                    </CardTitle>
+                    <Button variant="outline" size="sm" onClick={addWorkshop} className="gap-2">
+                      <Plus className="h-4 w-4" /> Adicionar
                     </Button>
                   </div>
-                  <CardDescription>Configure os workshops do projeto</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {workshops.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <GraduationCap className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">Nenhum workshop adicionado</p>
-                      <p className="text-xs mt-1">Clique em "Adicionar Workshop" para começar</p>
+                      <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhum workshop</p>
                     </div>
-                  ) : (
-                    workshops.map((workshop, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border p-4 space-y-3 bg-muted/30"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Workshop #{index + 1}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => removeWorkshop(index)}
-                            className="h-7 w-7 text-muted-foreground hover:text-danger"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium mb-1 block">Título</label>
-                          <input
-                            type="text"
-                            value={workshop.title}
-                            onChange={(e) => updateWorkshop(index, "title", e.target.value)}
-                            className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            placeholder="Ex: Workshop de Integração"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium mb-1 block">Descrição</label>
-                          <textarea
-                            value={workshop.description}
-                            onChange={(e) => updateWorkshop(index, "description", e.target.value)}
-                            className="w-full min-h-[60px] rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                            placeholder="Descreva o workshop..."
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Data Agendada</label>
-                            <input
-                              type="date"
-                              value={workshop.scheduledDate}
-                              onChange={(e) => updateWorkshop(index, "scheduledDate", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Duração</label>
-                            <input
-                              type="text"
-                              value={workshop.duration}
-                              onChange={(e) => updateWorkshop(index, "duration", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                              placeholder="Ex: 4 horas"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Participantes</label>
-                            <input
-                              type="text"
-                              value={workshop.participants}
-                              onChange={(e) => updateWorkshop(index, "participants", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                              placeholder="Ex: 10 pessoas"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Cadência</label>
-                            <select
-                              value={workshop.cadence}
-                              onChange={(e) => updateWorkshop(index, "cadence", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            >
-                              {cadences.map((cad) => (
-                                <option key={cad.value} value={cad.value}>
-                                  {cad.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {workshop.scheduledDate && workshop.cadence && (
-                          <div className="mt-2 p-2 rounded-lg bg-purple-500/5 border border-purple-500/20">
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-medium">Próximo workshop previsto:</span>{" "}
-                              {formatDateShort(calculateNextDate(workshop.scheduledDate, workshop.cadence.toUpperCase()) || new Date())}
-                            </p>
-                          </div>
-                        )}
+                  ) : workshops.map((w, i) => (
+                    <div key={i} className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Workshop #{i + 1}</span>
+                        <Button variant="ghost" size="sm" onClick={() => removeWorkshop(i)}><X className="h-4 w-4" /></Button>
                       </div>
-                    ))
-                  )}
+                      <Input value={w.title} onChange={(e) => updateWorkshop(i, "title", e.target.value)} placeholder="Título" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input type="date" value={w.scheduledDate} onChange={(e) => updateWorkshop(i, "scheduledDate", e.target.value)} />
+                        <Input value={w.duration} onChange={(e) => updateWorkshop(i, "duration", e.target.value)} placeholder="Duração" />
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2">
                       <Users2 className="h-5 w-5 text-primary" />
-                      <CardTitle>Hotseats</CardTitle>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={addHotseat} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Adicionar Hotseat
+                      Hotseats
+                    </CardTitle>
+                    <Button variant="outline" size="sm" onClick={addHotseat} className="gap-2">
+                      <Plus className="h-4 w-4" /> Adicionar
                     </Button>
                   </div>
-                  <CardDescription>Configure os hotseats do projeto</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {hotseats.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <Users2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">Nenhum hotseat adicionado</p>
-                      <p className="text-xs mt-1">Clique em "Adicionar Hotseat" para começar</p>
+                      <Users2 className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhum hotseat</p>
                     </div>
-                  ) : (
-                    hotseats.map((hotseat, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border p-4 space-y-3 bg-muted/30"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Hotseat #{index + 1}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => removeHotseat(index)}
-                            className="h-7 w-7 text-muted-foreground hover:text-danger"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium mb-1 block">Título</label>
-                          <input
-                            type="text"
-                            value={hotseat.title}
-                            onChange={(e) => updateHotseat(index, "title", e.target.value)}
-                            className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            placeholder="Ex: Hotseat de Análise"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium mb-1 block">Descrição</label>
-                          <textarea
-                            value={hotseat.description}
-                            onChange={(e) => updateHotseat(index, "description", e.target.value)}
-                            className="w-full min-h-[60px] rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                            placeholder="Descreva o hotseat..."
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Data Agendada</label>
-                            <input
-                              type="date"
-                              value={hotseat.scheduledDate}
-                              onChange={(e) => updateHotseat(index, "scheduledDate", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Duração</label>
-                            <input
-                              type="text"
-                              value={hotseat.duration}
-                              onChange={(e) => updateHotseat(index, "duration", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                              placeholder="Ex: 2 horas"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Participantes</label>
-                            <input
-                              type="text"
-                              value={hotseat.participants}
-                              onChange={(e) => updateHotseat(index, "participants", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                              placeholder="Ex: 5 pessoas"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium mb-1 block">Cadência</label>
-                            <select
-                              value={hotseat.cadence}
-                              onChange={(e) => updateHotseat(index, "cadence", e.target.value)}
-                              className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            >
-                              {cadences.map((cad) => (
-                                <option key={cad.value} value={cad.value}>
-                                  {cad.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {hotseat.scheduledDate && hotseat.cadence && (
-                          <div className="mt-2 p-2 rounded-lg bg-orange-500/5 border border-orange-500/20">
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-medium">Próximo hotseat previsto:</span>{" "}
-                              {formatDateShort(calculateNextDate(hotseat.scheduledDate, hotseat.cadence.toUpperCase()) || new Date())}
-                            </p>
-                          </div>
-                        )}
+                  ) : hotseats.map((h, i) => (
+                    <div key={i} className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Hotseat #{i + 1}</span>
+                        <Button variant="ghost" size="sm" onClick={() => removeHotseat(i)}><X className="h-4 w-4" /></Button>
                       </div>
-                    ))
-                  )}
+                      <Input value={h.title} onChange={(e) => updateHotseat(i, "title", e.target.value)} placeholder="Título" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input type="date" value={h.scheduledDate} onChange={(e) => updateHotseat(i, "scheduledDate", e.target.value)} />
+                        <Input value={h.duration} onChange={(e) => updateHotseat(i, "duration", e.target.value)} placeholder="Duração" />
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
-                      <CardTitle>Contatos</CardTitle>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={addContact} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Adicionar Contato
-                    </Button>
+          <TabsContent value="contatos">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-primary" />
+                    Contatos
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={addContact} className="gap-2">
+                    <Plus className="h-4 w-4" /> Adicionar
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {contacts.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <User className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Nenhum contato cadastrado</p>
                   </div>
-                  <CardDescription>
-                    Adicione os contatos principais da empresa <span className="text-danger">*</span>
-                  </CardDescription>
-                </CardHeader>
-            <CardContent className="space-y-4">
-              {contacts.map((contact, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border p-4 space-y-3 bg-muted/30"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Contato #{index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => removeContact(index)}
-                      className="h-7 w-7 text-muted-foreground hover:text-danger"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">Nome</label>
-                      <input
-                        type="text"
-                        value={contact.name}
-                        onChange={(e) => updateContact(index, "name", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      />
+                ) : contacts.map((contact, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border p-4 space-y-3 bg-muted/30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Contato #{index + 1}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeContact(index)}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">Cargo</label>
-                      <input
-                        type="text"
-                        value={contact.role}
-                        onChange={(e) => updateContact(index, "role", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input value={contact.name} onChange={(e) => updateContact(index, "name", e.target.value)} placeholder="Nome" />
+                      <Input value={contact.role} onChange={(e) => updateContact(index, "role", e.target.value)} placeholder="Cargo" />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">Email</label>
-                      <input
-                        type="email"
-                        value={contact.email}
-                        onChange={(e) => updateContact(index, "email", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input type="email" value={contact.email} onChange={(e) => updateContact(index, "email", e.target.value)} placeholder="Email" />
+                      <Input value={contact.phone} onChange={(e) => updateContact(index, "phone", e.target.value)} placeholder="Telefone" />
                     </div>
-
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">Telefone</label>
+                    <label className="flex items-center gap-2 text-sm">
                       <input
-                        type="tel"
-                        value={contact.phone}
-                        onChange={(e) => updateContact(index, "phone", e.target.value)}
-                        className="w-full h-9 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        type="checkbox"
+                        checked={contact.isDecisionMaker}
+                        onChange={(e) => updateContact(index, "isDecisionMaker", e.target.checked)}
+                        className="rounded"
                       />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id={`decision-maker-${index}`}
-                      checked={contact.isDecisionMaker}
-                      onChange={(e) => updateContact(index, "isDecisionMaker", e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <label htmlFor={`decision-maker-${index}`} className="text-sm text-muted-foreground">
                       É decisor
                     </label>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-              </Card>
-            </div>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <div className="lg:col-span-1 space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    <CardTitle>Logo</CardTitle>
-                  </div>
-                  <CardDescription>Logo visível no painel do cliente</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <LogoUpload companyId={id} currentLogo={company?.logo || null} />
-                </CardContent>
-              </Card>
+          <TabsContent value="recursos">
+            <ResourceManager companyId={id} />
+          </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <CardTitle>Documentos</CardTitle>
-                  </div>
-                  <CardDescription>Anexe documentos importantes</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      Contrato
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => setFormData({ ...formData, contractFile: e.target.files?.[0] || null })}
-                        className="hidden"
-                        id="contract-upload-edit"
-                      />
-                      <label
-                        htmlFor="contract-upload-edit"
-                        className="flex-1 h-10 rounded-lg border border-dashed bg-muted/50 flex items-center justify-center gap-2 cursor-pointer hover:bg-muted transition-colors"
-                      >
-                        <Upload className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          {formData.contractFile ? formData.contractFile.name : "Anexar contrato"}
-                        </span>
-                      </label>
-                      {formData.contractFile && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setFormData({ ...formData, contractFile: null })}
-                          className="h-10 w-10"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      Proposta Comercial
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => setFormData({ ...formData, proposalFile: e.target.files?.[0] || null })}
-                        className="hidden"
-                        id="proposal-upload-edit"
-                      />
-                      <label
-                        htmlFor="proposal-upload-edit"
-                        className="flex-1 h-10 rounded-lg border border-dashed bg-muted/50 flex items-center justify-center gap-2 cursor-pointer hover:bg-muted transition-colors"
-                      >
-                        <Upload className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          {formData.proposalFile ? formData.proposalFile.name : "Anexar proposta"}
-                        </span>
-                      </label>
-                      {formData.proposalFile && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setFormData({ ...formData, proposalFile: null })}
-                          className="h-10 w-10"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                      <LinkIcon className="h-4 w-4" />
-                      Reunião Fathom
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.fathomLink}
-                      onChange={(e) => setFormData({ ...formData, fathomLink: e.target.value })}
-                      className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      placeholder="https://fathom.video/..."
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          <ResourceManager companyId={id} />
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t">
-            <Link href="/admin/empresas">
-              <Button type="button" variant="outline">
-                Cancelar
-              </Button>
-            </Link>
-            <Button type="submit" disabled={loading} className="gap-2 bg-gradient-brand hover:brightness-110">
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Salvar Alterações
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
+          <TabsContent value="diagnostico">
+            <DiagnosticManager companyId={id} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

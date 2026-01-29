@@ -16,22 +16,32 @@ import {
   Sparkles,
   Calendar,
   Bell,
+  Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { signOut } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import { useUserProfile, UserInfo, UserAvatar } from "./user-avatar";
 
-const navigation = [
-  { name: "Dashboard", href: "/cliente/dashboard", icon: LayoutDashboard, color: "from-indigo-500 to-purple-500" },
-  { name: "Entregas", href: "/cliente/entregas", icon: Package, color: "from-emerald-500 to-teal-500" },
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  clientOnly?: boolean;
+};
+
+const navigation: NavItem[] = [
+  { name: "Dashboard", href: "/cliente/dashboard", icon: LayoutDashboard, color: "from-indigo-500 to-purple-500", clientOnly: true },
+  { name: "Entregas", href: "/cliente/entregas", icon: Package, color: "from-emerald-500 to-teal-500", clientOnly: true },
   { name: "Agenda", href: "/cliente/agenda", icon: Calendar, color: "from-pink-500 to-rose-500" },
   { name: "Pesquisas", href: "/cliente/pesquisas", icon: ClipboardList, color: "from-amber-500 to-orange-500" },
   { name: "Notificações", href: "/cliente/notificacoes", icon: Bell, color: "from-rose-500 to-pink-500" },
   { name: "Recursos", href: "/cliente/recursos", icon: Sparkles, color: "from-purple-500 to-pink-500" },
-  { name: "Documentação", href: "/cliente/documentacao", icon: FileText, color: "from-blue-500 to-cyan-500" },
-  { name: "Suporte", href: "/cliente/suporte", icon: MessageSquare, color: "from-cyan-500 to-blue-500" },
+  { name: "Diagnóstico", href: "/cliente/diagnostico", icon: Stethoscope, color: "from-teal-500 to-emerald-500" },
+  { name: "Documentação", href: "/cliente/documentacao", icon: FileText, color: "from-blue-500 to-cyan-500", clientOnly: true },
+  { name: "Suporte", href: "/cliente/suporte", icon: MessageSquare, color: "from-cyan-500 to-blue-500", clientOnly: true },
   { name: "Configurações", href: "/cliente/configuracoes", icon: Settings, color: "from-slate-500 to-zinc-500" },
 ];
 
@@ -46,7 +56,17 @@ export function ClienteSidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useUserProfile();
+  const { data: session } = useSession();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+
+  const isClientMember = session?.user?.role === "CLIENT_MEMBER";
+
+  const filteredNavigation = navigation.filter((item) => {
+    if (isClientMember && item.clientOnly) {
+      return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     async function fetchCompanyInfo() {
@@ -102,7 +122,7 @@ export function ClienteSidebar() {
       
       <div className="relative flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
-          <Link href="/cliente/dashboard" className="flex items-center gap-3">
+          <Link href={isClientMember ? "/cliente/recursos" : "/cliente/dashboard"} className="flex items-center gap-3">
             {companyInfo?.logo ? (
               <>
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden">
@@ -123,7 +143,7 @@ export function ClienteSidebar() {
           </Link>
         )}
         {collapsed && (
-          <Link href="/cliente/dashboard" className="mx-auto">
+          <Link href={isClientMember ? "/cliente/recursos" : "/cliente/dashboard"} className="mx-auto">
             {companyInfo?.logo ? (
               <div className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden">
                 {renderLogo(true)}
@@ -152,7 +172,7 @@ export function ClienteSidebar() {
             Menu
           </span>
         )}
-        {navigation.map((item) => {
+        {filteredNavigation.map((item) => {
           const isActive = pathname === item.href || 
             (item.href !== "/cliente/dashboard" && pathname.startsWith(item.href));
           

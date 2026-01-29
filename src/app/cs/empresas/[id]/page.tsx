@@ -48,7 +48,7 @@ import { cn, formatDateShort, getCadenceLabel, calculateNextDate, getDaysUntil }
 import { UpcomingDeliverables } from "@/components/upcoming-deliverables";
 import { DeliveryCompletionDialog, SendNPSButton } from "@/components/cs";
 import { CompanySurveysCard } from "@/components/company-surveys-card";
-import { LogoUpload, ResourceManager } from "@/components/company";
+import { LogoUpload, ResourceManager, DiagnosticManager } from "@/components/company";
 
 type Contact = {
   id: string;
@@ -772,6 +772,10 @@ export default function CSEmpresaDetalhePage() {
               <ResourceManager companyId={company.id} />
             </div>
           </div>
+        )}
+
+        {company.canEdit && (
+          <DiagnosticManager companyId={company.id} />
         )}
       </div>
 

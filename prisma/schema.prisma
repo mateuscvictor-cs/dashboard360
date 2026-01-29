@@ -11,6 +11,7 @@ enum UserRole {
   ADMIN
   CS_OWNER
   CLIENT
+  CLIENT_MEMBER
 }
 
 enum UserStatus {
@@ -263,6 +264,8 @@ enum NotificationType {
   LOW_SCORE_ALERT
   MANUAL_MESSAGE
   BROADCAST
+  DIAGNOSTIC_PENDING
+  DIAGNOSTIC_COMPLETED
 }
 
 model User {
@@ -299,6 +302,8 @@ model User {
   deliveryComments      DeliveryComment[]
   receivedNotifications Notification[]    @relation("NotificationRecipient")
   sentNotifications     Notification[]    @relation("NotificationSender")
+  sentDiagnostics       DiagnosticForm[]  @relation("SentDiagnostics")
+  diagnosticResponses   DiagnosticResponse[]
 
   @@map("users")
 }
@@ -415,6 +420,7 @@ model SquadMember {
 model Company {
   id              String       @id @default(cuid())
   name            String
+  slug            String?      @unique
   cnpj            String?
   logo            String?
   segment         String?
@@ -433,16 +439,17 @@ model Company {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  framework        String?
-  workshopsCount   Int      @default(0)
-  hotseatsCount    Int      @default(0)
-  ipcsCount        Int      @default(0)
-  meetingsCount    Int      @default(0)
-  docsLink         String?
-  fathomLink       String?
-  contractStart    DateTime?
-  contractEnd      DateTime?
-  onboardingStatus String?
+  framework          String?
+  workshopsCount     Int      @default(0)
+  hotseatsCount      Int      @default(0)
+  ipcsCount          Int      @default(0)
+  meetingsCount      Int      @default(0)
+  docsLink           String?
+  fathomLink         String?
+  contractStart      DateTime?
+  contractEnd        DateTime?
+  onboardingStatus   String?
+  memberInviteLimit  Int      @default(0)
 
   csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id])
   csOwnerId String?
@@ -472,6 +479,7 @@ model Company {
   calendlyBookings CalendlyBooking[]
   notifications    Notification[]
   onboardingSteps  OnboardingStep[]
+  diagnosticForms  DiagnosticForm[]
 
   @@map("companies")
 }
@@ -1045,6 +1053,7 @@ enum InviteType {
   COMPANY_ADMIN
   MEMBER_ADMIN
   MEMBER_CS
+  COMPANY_MEMBER
 }
 
 enum InviteStatus {
@@ -1229,4 +1238,94 @@ model EmailTemplate {
   updatedAt   DateTime          @updatedAt
 
   @@map("email_templates")
+}
+
+enum DiagnosticAudience {
+  ALL
+  CLIENT_ONLY
+  MEMBER_ONLY
+}
+
+enum DiagnosticStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ANALYZED
+  EXPIRED
+}
+
+model DiagnosticForm {
+  id              String             @id @default(cuid())
+  companyId       String
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status          DiagnosticStatus   @default(PENDING)
+  sentAt          DateTime           @default(now())
+  sentById        String
+  sentBy          User               @relation("SentDiagnostics", fields: [sentById], references: [id])
+  expiresAt       DateTime?
+  publicToken     String?            @unique
+  targetAudience  DiagnosticAudience @default(ALL)
+  notifiedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  responses   DiagnosticResponse[]
+  aiAnalysis  DiagnosticAnalysis?
+
+  @@map("diagnostic_forms")
+}
+
+model DiagnosticResponse {
+  id              String          @id @default(cuid())
+  diagnosticId    String
+  diagnostic      DiagnosticForm  @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?           @relation(fields: [userId], references: [id])
+  email           String?
+  inviteSent      Boolean         @default(false)
+  completedAt     DateTime?
+
+  fullName        String
+  position        String
+  area            String
+  timeInCompany   String
+  directlyInvolved String
+  directManager   String?
+
+  topFiveTasks    String[]
+  topTwoTimeTasks String[]
+  copyPasteTask   String?
+  reworkArea      String?
+  humanErrorArea  String?
+  dependencyArea  String?
+  frustration     String?
+
+  taskDetails     Json
+  systemsData     Json
+  priorityData    Json
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([diagnosticId, email])
+  @@map("diagnostic_responses")
+}
+
+model DiagnosticAnalysis {
+  id                   String          @id @default(cuid())
+  diagnosticId         String          @unique
+  diagnostic           DiagnosticForm  @relation(fields: [diagnosticId], references: [id], onDelete: Cascade)
+
+  summary              String          @db.Text
+  suggestedIPCs        Json?           @map("suggested_ipcs")
+  suggestedAutomations Json
+  priorityTasks        Json
+  estimatedSavings     Json
+  presentationPrompt   String?         @db.Text
+  rawAnalysis          String          @db.Text
+
+  analyzedAt           DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@map("diagnostic_analyses")
 }

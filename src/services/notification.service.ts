@@ -529,6 +529,80 @@ class NotificationService {
       });
     }
   }
+
+  async notifyDiagnosticPending(
+    companyId: string,
+    diagnosticId: string,
+    publicLink: string,
+    targetAudience: "ALL" | "CLIENT_ONLY" | "MEMBER_ONLY"
+  ): Promise<void> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { users: true },
+    });
+
+    if (!company) return;
+
+    const targetUsers = company.users.filter((u) => {
+      if (targetAudience === "CLIENT_ONLY") return u.role === "CLIENT";
+      if (targetAudience === "MEMBER_ONLY") return u.role === "CLIENT_MEMBER";
+      return u.role === "CLIENT" || u.role === "CLIENT_MEMBER";
+    });
+
+    for (const user of targetUsers) {
+      await this.create({
+        type: "DIAGNOSTIC_PENDING",
+        title: "Diagnóstico disponível",
+        message: "Você tem um diagnóstico de automação pendente. Responda para mapear oportunidades de melhoria!",
+        link: `/cliente/diagnostico`,
+        recipientId: user.id,
+        companyId,
+      });
+    }
+  }
+
+  async notifyDiagnosticCompleted(
+    companyId: string,
+    diagnosticId: string,
+    respondentName: string,
+    respondentEmail: string
+  ): Promise<void> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: {
+        csOwner: {
+          include: { user: true },
+        },
+        users: {
+          where: { role: "CLIENT" },
+        },
+      },
+    });
+
+    if (!company) return;
+
+    if (company.csOwner?.user) {
+      await this.create({
+        type: "DIAGNOSTIC_COMPLETED",
+        title: "Diagnóstico respondido",
+        message: `${respondentName} (${respondentEmail}) completou o diagnóstico de automação`,
+        link: `/cs/empresas/${companyId}/diagnosticos`,
+        recipientId: company.csOwner.user.id,
+        companyId,
+      });
+    }
+
+    for (const clientUser of company.users) {
+      await this.create({
+        type: "DIAGNOSTIC_COMPLETED",
+        title: "Membro respondeu diagnóstico",
+        message: `${respondentName} completou o diagnóstico de automação`,
+        link: `/cliente/diagnostico`,
+        recipientId: clientUser.id,
+        companyId,
+      });
+    }
+  }
 }
 
 export const notificationService = new NotificationService();

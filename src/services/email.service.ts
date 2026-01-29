@@ -398,6 +398,89 @@ export const emailService = {
     }
   },
 
+  async sendDiagnosticInvite(data: {
+    to: string;
+    recipientName?: string;
+    companyName: string;
+    diagnosticUrl: string;
+    expiresAt?: Date;
+  }): Promise<boolean> {
+    const expiresText = data.expiresAt
+      ? data.expiresAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+      : null;
+
+    if (!process.env.BREVO_API_KEY) {
+      console.log(`[DEV] Diagnostic invite for ${data.to}: ${data.diagnosticUrl}`);
+      return true;
+    }
+
+    try {
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      sendSmtpEmail.sender = { email: SENDER_EMAIL, name: SENDER_NAME };
+      sendSmtpEmail.to = [{ email: data.to }];
+      sendSmtpEmail.subject = `Diagnóstico de Automação - ${data.companyName}`;
+      sendSmtpEmail.htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 32px 40px; text-align: center;">
+                      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">Diagnóstico de Automação</h1>
+                      <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">${data.companyName}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 40px;">
+                      ${data.recipientName ? `<p style="color: #4b5563; margin: 0 0 16px 0; font-size: 15px;">Olá, ${data.recipientName}!</p>` : ""}
+                      <p style="color: #4b5563; margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">
+                        Você foi convidado para participar de um <strong>diagnóstico de automação</strong> da sua empresa.
+                      </p>
+                      <p style="color: #4b5563; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">
+                        Este diagnóstico ajudará a identificar oportunidades de melhoria e automação nos processos do seu dia a dia. Leva aproximadamente <strong>10-15 minutos</strong> para ser preenchido.
+                      </p>
+                      <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <p style="color: #6b7280; margin: 0; font-size: 13px;">
+                          📋 Suas respostas são confidenciais e serão usadas apenas para análise interna.
+                        </p>
+                      </div>
+                      <div style="text-align: center; margin: 32px 0;">
+                        <a href="${data.diagnosticUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+                          Responder Diagnóstico
+                        </a>
+                      </div>
+                      ${expiresText ? `<p style="color: #9ca3af; font-size: 13px; text-align: center; margin: 0;">Este link expira em ${expiresText}</p>` : ""}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 24px 40px; background-color: #fafafa; border-top: 1px solid #e5e7eb;">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0; text-align: center;">
+                        Este email foi enviado pela Vanguardia 360 a pedido de ${data.companyName}.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `;
+      await apiInstance.sendTransacEmail(sendSmtpEmail);
+      return true;
+    } catch (error) {
+      console.error("Failed to send diagnostic invite:", error);
+      return false;
+    }
+  },
+
   async sendNotificationEmail(
     to: string,
     title: string,

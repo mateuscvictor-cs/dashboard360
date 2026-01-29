@@ -1,4 +1,4 @@
-export type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
+export type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT" | "CLIENT_MEMBER";
 
 export interface AuthUser {
   id: string;
@@ -30,20 +30,39 @@ export const ROLE_PERMISSIONS = {
     canViewAllData: true,
     canManageUsers: true,
     canManageTemplates: true,
+    canInviteMembers: false,
   },
   CS_OWNER: {
     routes: ["/admin", "/admin/cs", "/admin/empresas", "/admin/insights", "/admin/configuracoes"],
     canViewAllData: false,
     canManageUsers: false,
     canManageTemplates: false,
+    canInviteMembers: false,
   },
   CLIENT: {
-    routes: ["/cliente/dashboard", "/cliente/entregas", "/cliente/suporte", "/cliente/documentacao", "/cliente/configuracoes"],
+    routes: ["/cliente/dashboard", "/cliente/entregas", "/cliente/suporte", "/cliente/documentacao", "/cliente/configuracoes", "/cliente/recursos", "/cliente/agenda", "/cliente/pesquisas", "/cliente/notificacoes", "/cliente/diagnostico", "/cliente/equipe"],
     canViewAllData: false,
     canManageUsers: false,
     canManageTemplates: false,
+    canInviteMembers: true,
+  },
+  CLIENT_MEMBER: {
+    routes: ["/cliente/recursos", "/cliente/agenda", "/cliente/pesquisas", "/cliente/notificacoes", "/cliente/configuracoes", "/cliente/diagnostico"],
+    canViewAllData: false,
+    canManageUsers: false,
+    canManageTemplates: false,
+    canInviteMembers: false,
   },
 } as const;
+
+export const CLIENT_MEMBER_ALLOWED_ROUTES = [
+  "/cliente/recursos",
+  "/cliente/agenda",
+  "/cliente/pesquisas",
+  "/cliente/notificacoes",
+  "/cliente/configuracoes",
+  "/cliente/diagnostico",
+];
 
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
   const permissions = ROLE_PERMISSIONS[role];
@@ -62,6 +81,11 @@ export function canAccessRoute(role: UserRole, pathname: string): boolean {
     return pathname.startsWith("/cliente") || pathname === "/";
   }
 
+  if (role === "CLIENT_MEMBER") {
+    if (pathname === "/") return true;
+    return CLIENT_MEMBER_ALLOWED_ROUTES.some(route => pathname.startsWith(route));
+  }
+
   return false;
 }
 
@@ -73,6 +97,8 @@ export function getDefaultRedirect(role: UserRole): string {
       return "/admin/cs";
     case "CLIENT":
       return "/cliente/dashboard";
+    case "CLIENT_MEMBER":
+      return "/cliente/recursos";
     default:
       return "/";
   }
