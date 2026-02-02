@@ -30,6 +30,7 @@ import {
   GoalsProgress,
 } from "@/components/cs-performance";
 import { cn } from "@/lib/utils";
+import type { PerformanceMetric, PerformancePeriod } from "@prisma/client";
 
 type CSWithSnapshot = {
   id: string;
@@ -91,9 +92,9 @@ type RankingItem = {
 type GoalWithProgress = {
   goal: {
     id: string;
-    metric: string;
+    metric: PerformanceMetric;
     targetValue: number;
-    period: string;
+    period: PerformancePeriod;
     startDate: string;
     endDate: string;
     csOwner?: { id: string; name: string } | null;
@@ -153,7 +154,7 @@ export default function PerformancePage() {
             return null;
           })
         );
-        setGoals(goalsWithProgress.filter(Boolean));
+        setGoals(goalsWithProgress.filter(Boolean) as GoalWithProgress[]);
       }
     } catch (error) {
       console.error("Error fetching performance data:", error);
@@ -446,7 +447,7 @@ export default function PerformancePage() {
                   </CardContent>
                 </Card>
 
-                <GoalsProgress goals={goals as GoalWithProgress[]} />
+                <GoalsProgress goals={goals} />
               </div>
             </div>
           </TabsContent>
@@ -457,7 +458,7 @@ export default function PerformancePage() {
 
           <TabsContent value="goals" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <GoalsProgress goals={goals as GoalWithProgress[]} />
+              <GoalsProgress goals={goals} />
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
