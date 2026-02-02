@@ -384,7 +384,7 @@ export default function SquadsPage() {
                             title={member.csOwner.name}
                           >
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-semibold border-2 border-background">
-                              {member.csOwner.avatar || member.csOwner.name.substring(0, 2).toUpperCase()}
+                              {member.csOwner.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                             </div>
                             <div className={cn(
                               "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
@@ -513,7 +513,7 @@ export default function SquadsPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-semibold">
-                          {member.csOwner.avatar || member.csOwner.name.substring(0, 2).toUpperCase()}
+                          {member.csOwner.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                         </div>
                         <div className={cn(
                           "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
@@ -548,7 +548,7 @@ export default function SquadsPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-semibold">
-                          {cs.avatar || cs.name.substring(0, 2).toUpperCase()}
+                          {cs.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                         </div>
                         <div className={cn(
                           "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",

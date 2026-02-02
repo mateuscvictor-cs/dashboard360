@@ -315,7 +315,7 @@ export default function ClienteDeliveryDetailsPage({ params }: { params: Promise
                   {delivery.company.csOwner ? (
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                        {delivery.company.csOwner.name.substring(0, 2).toUpperCase()}
+                        {delivery.company.csOwner.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <p className="font-medium">{delivery.company.csOwner.name}</p>

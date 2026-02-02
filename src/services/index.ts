@@ -13,3 +13,4 @@ export { npsSuggestionService } from "./nps-suggestion.service";
 export { adoptionCheckService } from "./adoption-check.service";
 export { emailService } from "./email.service";
 export { inviteService } from "./invite.service";
+export { csPerformanceService } from "./cs-performance.service";

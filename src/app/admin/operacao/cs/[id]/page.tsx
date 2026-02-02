@@ -25,6 +25,9 @@ import {
   Plus,
   Trash2,
   X,
+  Trophy,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, formatDate, formatRelativeTime } from "@/lib/utils";
+import { PerformanceBreakdown, PerformanceChart } from "@/components/cs-performance";
 
 type CSOwner = {
   id: string;
@@ -86,6 +90,45 @@ type Company = {
   name: string;
 };
 
+type PerformanceSnapshot = {
+  id: string;
+  date: string;
+  performanceScore: number;
+  scoreExecution: number;
+  scorePortfolio: number;
+  scoreEngagement: number;
+  scoreSatisfaction: number;
+  ranking: number;
+};
+
+type PerformanceBreakdownData = {
+  execution: {
+    deliveriesOnTime: number;
+    deliveriesCompletion: number;
+    checklistCompletion: number;
+    demandsResolved: number;
+    subtotal: number;
+  };
+  portfolio: {
+    healthScoreAvg: number;
+    accountsHealthy: number;
+    riskReduction: number;
+    subtotal: number;
+  };
+  engagement: {
+    activitiesCount: number;
+    meetingsCount: number;
+    responseTime: number;
+    subtotal: number;
+  };
+  satisfaction: {
+    npsAverage: number;
+    csatAverage: number;
+    subtotal: number;
+  };
+  total: number;
+};
+
 export default function CSProfilePage() {
   const params = useParams();
   const csId = params.id as string;
@@ -96,6 +139,11 @@ export default function CSProfilePage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  
+  const [performanceHistory, setPerformanceHistory] = useState<PerformanceSnapshot[]>([]);
+  const [performanceBreakdown, setPerformanceBreakdown] = useState<PerformanceBreakdownData | null>(null);
+  const [teamAverage, setTeamAverage] = useState<number | undefined>(undefined);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
   
   const [showDemandModal, setShowDemandModal] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
@@ -118,7 +166,50 @@ export default function CSProfilePage() {
 
   useEffect(() => {
     loadData();
+    loadPerformanceData();
   }, [csId]);
+
+  async function loadPerformanceData() {
+    setLoadingPerformance(true);
+    try {
+      const [historyRes, breakdownRes, teamRes] = await Promise.all([
+        fetch(`/api/cs-performance/${csId}?days=30`),
+        fetch(`/api/cs-performance/${csId}/breakdown?days=30`),
+        fetch(`/api/cs-performance`),
+      ]);
+
+      if (historyRes.ok) {
+        const data = await historyRes.json();
+        setPerformanceHistory(data.history || []);
+      }
+
+      if (breakdownRes.ok) {
+        const data = await breakdownRes.json();
+        setPerformanceBreakdown(data.breakdown || null);
+      }
+
+      if (teamRes.ok) {
+        const data = await teamRes.json();
+        if (data.teamAverages) {
+          setTeamAverage(data.teamAverages.performanceScore);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar performance:", error);
+    }
+    setLoadingPerformance(false);
+  }
+
+  async function handleRefreshPerformance() {
+    setLoadingPerformance(true);
+    try {
+      await fetch("/api/cs-performance", { method: "POST" });
+      await loadPerformanceData();
+    } catch (error) {
+      console.error("Erro ao atualizar performance:", error);
+    }
+    setLoadingPerformance(false);
+  }
 
   async function loadData() {
     setLoading(true);
@@ -284,7 +375,7 @@ export default function CSProfilePage() {
         <div className="flex items-start gap-6">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-2xl font-bold shadow-lg">
-              {csOwner.avatar}
+              {csOwner.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
             </div>
             <div className={cn(
               "absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-background",
@@ -381,6 +472,14 @@ export default function CSProfilePage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="performance">
+              Performance
+              {performanceHistory.length > 0 && performanceHistory[performanceHistory.length - 1] && (
+                <Badge variant="secondary" size="sm" className="ml-2">
+                  #{performanceHistory[performanceHistory.length - 1].ranking}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="checklist">Checklist ({checklist.length})</TabsTrigger>
             <TabsTrigger value="demands">Demandas ({demands.length})</TabsTrigger>
           </TabsList>
@@ -393,6 +492,111 @@ export default function CSProfilePage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
+              <TabsContent value="performance" className="mt-6">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25">
+                        <Trophy className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Performance de {csOwner.name}</h3>
+                        <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshPerformance}
+                      disabled={loadingPerformance}
+                      className="gap-2"
+                    >
+                      {loadingPerformance ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Atualizar
+                    </Button>
+                  </div>
+
+                  {performanceHistory.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card>
+                          <CardContent className="p-4 text-center">
+                            <p className={cn(
+                              "text-3xl font-bold",
+                              (performanceHistory[performanceHistory.length - 1]?.performanceScore || 0) >= 70
+                                ? "text-emerald-600"
+                                : (performanceHistory[performanceHistory.length - 1]?.performanceScore || 0) >= 50
+                                ? "text-amber-600"
+                                : "text-red-600"
+                            )}>
+                              {(performanceHistory[performanceHistory.length - 1]?.performanceScore || 0).toFixed(0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Score Total</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="p-4 text-center">
+                            <p className="text-3xl font-bold">
+                              #{performanceHistory[performanceHistory.length - 1]?.ranking || "-"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Ranking</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="p-4 text-center">
+                            <p className="text-3xl font-bold">
+                              {(performanceHistory[performanceHistory.length - 1]?.scoreExecution || 0).toFixed(0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Execução (/40)</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="p-4 text-center">
+                            <p className="text-3xl font-bold">
+                              {(performanceHistory[performanceHistory.length - 1]?.scorePortfolio || 0).toFixed(0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Portfólio (/30)</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <PerformanceChart data={performanceHistory} showBreakdown />
+
+                      {performanceBreakdown && (
+                        <PerformanceBreakdown data={performanceBreakdown} teamAverage={teamAverage} />
+                      )}
+                    </>
+                  ) : (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <Trophy className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                        <h3 className="font-semibold mb-2">Sem dados de performance</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Os dados de performance ainda não foram calculados para este CS.
+                        </p>
+                        <Button onClick={handleRefreshPerformance} disabled={loadingPerformance}>
+                          {loadingPerformance ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Calculando...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Calcular Performance
+                            </>
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
               <TabsContent value="overview" className="mt-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>

@@ -41,6 +41,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   ArrowRight,
+  Trophy,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { useInsights } from "@/hooks/use-insights";
@@ -327,6 +328,30 @@ export default function OperacaoPage() {
           />
         </div>
 
+        <Link href="/admin/operacao/performance">
+          <Card className="group border-amber-200/50 dark:border-amber-500/20 bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-500/5 dark:to-orange-500/5 hover:shadow-md transition-all cursor-pointer">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25">
+                    <Trophy className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Performance da Equipe</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Veja o ranking, métricas e metas dos CS Owners
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <span className="text-sm font-medium group-hover:underline">Ver dashboard</span>
+                  <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
@@ -398,7 +423,7 @@ export default function OperacaoPage() {
                           >
                             <div className="relative">
                               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-semibold">
-                                {cs.avatar}
+                                {cs.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                               </div>
                               <div className={cn(
                                 "absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background",
@@ -503,7 +528,7 @@ export default function OperacaoPage() {
                                   <div className="flex items-center gap-3">
                                     <div className="relative">
                                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-semibold">
-                                        {cs.avatar}
+                                        {cs.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                                       </div>
                                       <div className={cn(
                                         "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
@@ -1217,7 +1242,7 @@ function CSCard({ cs }: { cs: DBCSOwner }) {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white font-semibold">
-                  {cs.avatar || cs.name.substring(0, 2).toUpperCase()}
+                  {cs.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
                 <div className={cn(
                   "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background",

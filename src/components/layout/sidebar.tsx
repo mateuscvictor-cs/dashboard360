@@ -19,6 +19,7 @@ import {
   Calendar,
   Bell,
   Shield,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,9 +51,10 @@ const navSections: NavSection[] = [
     items: [
       { name: "Visão 360", href: "/admin", icon: LayoutDashboard, color: "from-indigo-500 to-purple-500" },
       { name: "Operação", href: "/admin/operacao", icon: ListTodo, color: "from-emerald-500 to-teal-500" },
+      { name: "Performance", href: "/admin/operacao/performance", icon: Trophy, color: "from-amber-500 to-orange-500" },
       { name: "Squads", href: "/admin/squads", icon: Users, color: "from-violet-500 to-purple-500" },
       { name: "Empresas", href: "/admin/empresas", icon: Building2, color: "from-blue-500 to-cyan-500" },
-      { name: "Entregas", href: "/admin/entregas", icon: Package, color: "from-amber-500 to-orange-500" },
+      { name: "Entregas", href: "/admin/entregas", icon: Package, color: "from-rose-500 to-pink-500" },
       { name: "Agenda", href: "/admin/agenda", icon: Calendar, color: "from-teal-500 to-emerald-500" },
       { name: "Insights IA", href: "/admin/insights", icon: Sparkles, color: "from-pink-500 to-rose-500" },
     ],

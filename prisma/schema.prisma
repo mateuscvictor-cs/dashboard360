@@ -377,14 +377,16 @@ model CSOwner {
   whatsappGroups      WhatsAppGroup[]
   appliedTemplates    AppliedTemplate[]
   squadMembers        SquadMember[]
-  createdWorkshops    Workshop[]
-  createdHotseats     Hotseat[]
-  aiInsights          AIInsight[]
-  requestedSurveys    Survey[]
-  deliveryCompletions DeliveryCompletion[]
-  uploadedDocuments   DeliveryDocument[]
-  calendlyConfig      CalendlyConfig?
-  calendlyBookings    CalendlyBooking[]
+  createdWorkshops       Workshop[]
+  createdHotseats        Hotseat[]
+  aiInsights             AIInsight[]
+  requestedSurveys       Survey[]
+  deliveryCompletions    DeliveryCompletion[]
+  uploadedDocuments      DeliveryDocument[]
+  calendlyConfig         CalendlyConfig?
+  calendlyBookings       CalendlyBooking[]
+  performanceSnapshots   CSPerformanceSnapshot[]
+  performanceGoals       CSPerformanceGoal[]
 
   @@map("cs_owners")
 }
@@ -1328,4 +1330,87 @@ model DiagnosticAnalysis {
   updatedAt            DateTime        @updatedAt
 
   @@map("diagnostic_analyses")
+}
+
+enum PerformanceMetric {
+  DELIVERIES_ON_TIME
+  DELIVERIES_COMPLETION
+  CHECKLIST_COMPLETION
+  DEMANDS_RESOLVED
+  HEALTH_SCORE_AVG
+  ACCOUNTS_HEALTHY
+  RISK_REDUCTION
+  ACTIVITIES_COUNT
+  MEETINGS_COUNT
+  RESPONSE_TIME
+  NPS_AVERAGE
+  CSAT_AVERAGE
+}
+
+enum PerformancePeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+model CSPerformanceSnapshot {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  csOwner   CSOwner @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String
+
+  deliveriesTotal     Int   @default(0)
+  deliveriesOnTime    Int   @default(0)
+  deliveriesDelayed   Int   @default(0)
+  deliveriesCompleted Int   @default(0)
+
+  avgHealthScore   Float @default(0)
+  accountsTotal    Int   @default(0)
+  accountsAtRisk   Int   @default(0)
+  accountsHealthy  Int   @default(0)
+  riskReduction    Int   @default(0)
+
+  activitiesCount     Int   @default(0)
+  meetingsCount       Int   @default(0)
+  checklistTotal      Int   @default(0)
+  checklistCompleted  Int   @default(0)
+  demandsTotal        Int   @default(0)
+  demandsCompleted    Int   @default(0)
+
+  npsAverage  Float @default(0)
+  csatAverage Float @default(0)
+
+  scoreExecution   Float @default(0)
+  scorePortfolio   Float @default(0)
+  scoreEngagement  Float @default(0)
+  scoreSatisfaction Float @default(0)
+  performanceScore Float @default(0)
+
+  ranking Int @default(0)
+
+  @@unique([csOwnerId, date])
+  @@index([date])
+  @@map("cs_performance_snapshots")
+}
+
+model CSPerformanceGoal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id], onDelete: Cascade)
+  csOwnerId String?
+
+  metric      PerformanceMetric
+  targetValue Float
+  period      PerformancePeriod
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean @default(true)
+
+  @@index([csOwnerId])
+  @@index([isActive])
+  @@map("cs_performance_goals")
 }
