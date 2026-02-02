@@ -50,6 +50,20 @@ export const userService = {
     });
   },
 
+  async update(id: string, data: { role?: UserRole; isActive?: boolean }) {
+    return prisma.user.update({
+      where: { id },
+      data,
+    });
+  },
+
+  async setActive(id: string, isActive: boolean) {
+    return prisma.user.update({
+      where: { id },
+      data: { isActive },
+    });
+  },
+
   async linkToCSOwner(userId: string, csOwnerId: string) {
     return prisma.user.update({
       where: { id: userId },

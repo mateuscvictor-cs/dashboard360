@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
+import { requireRole, getSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
+    await requireRole(["ADMIN", "CS_OWNER"]);
+    const session = await getSession();
+    const user = session?.user as { role?: string; csOwnerId?: string } | undefined;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const limit = searchParams.get("limit");
 
     const where: Record<string, unknown> = {};
-    
+    if (user?.role === "CS_OWNER" && user.csOwnerId) {
+      where.csOwnerId = user.csOwnerId;
+    }
     if (status) {
       const statuses = status.split(",").map((s) => s.trim().toUpperCase());
       where.healthStatus = { in: statuses };
@@ -39,6 +46,9 @@ export async function GET(request: Request) {
     
     return NextResponse.json(companies);
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
     console.error("Erro ao buscar empresas:", error);
     return NextResponse.json(
       { error: "Erro ao buscar empresas" },
@@ -49,6 +59,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await requireRole(["ADMIN", "CS_OWNER"]);
     const body = await request.json();
 
     const company = await prisma.company.create({
@@ -78,6 +89,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(company, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
     console.error("Erro ao criar empresa:", error);
     return NextResponse.json(
       { error: "Erro ao criar empresa" },

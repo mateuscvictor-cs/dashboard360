@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRole, getSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { calculateNextDate } from "@/lib/utils";
 
@@ -16,8 +17,11 @@ export interface UpcomingDeliverable {
 
 export async function GET(request: Request) {
   try {
+    await requireRole(["ADMIN", "CS_OWNER"]);
+    const session = await getSession();
+    const user = session?.user as { role?: string; csOwnerId?: string } | undefined;
+
     const { searchParams } = new URL(request.url);
-    const csOwnerId = searchParams.get("csOwnerId");
     const companyId = searchParams.get("companyId");
     const days = parseInt(searchParams.get("days") || "30");
 
@@ -25,13 +29,17 @@ export async function GET(request: Request) {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
 
-    const whereClause = {
-      ...(companyId && { id: companyId }),
-      ...(csOwnerId && { csOwnerId }),
-    };
+    const whereClause: Record<string, unknown> = {};
+    if (user?.role === "CS_OWNER" && user.csOwnerId) {
+      whereClause.csOwnerId = user.csOwnerId;
+    } else {
+      if (companyId) whereClause.id = companyId;
+      const csOwnerIdParam = searchParams.get("csOwnerId");
+      if (csOwnerIdParam) whereClause.csOwnerId = csOwnerIdParam;
+    }
 
     const companies = await prisma.company.findMany({
-      where: whereClause,
+      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
       include: {
         deliveries: {
           where: {
@@ -137,6 +145,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json(upcomingDeliverables);
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
     console.error("Erro ao buscar próximas entregas:", error);
     return NextResponse.json(
       { error: "Erro ao buscar próximas entregas" },

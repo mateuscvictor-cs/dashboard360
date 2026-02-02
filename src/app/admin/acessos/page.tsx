@@ -17,6 +17,10 @@ import {
   AlertCircle,
   Shield,
   Headphones,
+  Edit,
+  UserX,
+  UserCheck,
+  Trash2,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,6 +28,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn, formatRelativeTime } from "@/lib/utils";
 
 type InviteType = "COMPANY_ADMIN" | "MEMBER_ADMIN" | "MEMBER_CS";
@@ -46,6 +60,7 @@ interface User {
   email: string;
   role: string;
   emailVerified: boolean;
+  isActive?: boolean;
   createdAt: string;
   company: { id: string; name: string } | null;
   csOwner: { id: string; name: string } | null;
@@ -84,6 +99,11 @@ export default function AcessosPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({ role: "CLIENT" as string });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -158,6 +178,64 @@ export default function AcessosPage() {
       }
     } catch {
       console.error("Erro ao cancelar convite");
+    }
+  };
+
+  const openEditUserModal = (user: User) => {
+    setEditingUser(user);
+    setEditForm({ role: user.role });
+    setShowEditUserModal(true);
+    setError("");
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: editForm.role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erro ao atualizar usuário");
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.id === editingUser.id ? { ...u, ...data } : u)));
+      setShowEditUserModal(false);
+      setEditingUser(null);
+    } catch {
+      setError("Erro ao atualizar usuário");
+    }
+  };
+
+  const handleToggleActive = async (user: User) => {
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !(user.isActive ?? true) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: data.isActive } : u)));
+    } catch {
+      console.error("Erro ao alterar status do usuário");
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+    } catch {
+      console.error("Erro ao excluir usuário");
     }
   };
 
@@ -246,7 +324,7 @@ export default function AcessosPage() {
           />
           <StatsCard
             label="Usuários Ativos"
-            value={users.length}
+            value={users.filter((u) => u.isActive !== false).length}
             icon={Users}
             gradient="from-blue-500 to-cyan-500"
           />
@@ -428,7 +506,10 @@ export default function AcessosPage() {
                             key={user.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-4 p-4 rounded-xl border hover:shadow-sm transition-all"
+                            className={cn(
+                              "flex items-center gap-4 p-4 rounded-xl border hover:shadow-sm transition-all",
+                              user.isActive === false && "opacity-60"
+                            )}
                           >
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
                               {user.name
@@ -439,9 +520,12 @@ export default function AcessosPage() {
                                 .toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium">{user.name}</p>
                                 {getRoleBadge(user.role)}
+                                {user.isActive === false && (
+                                  <Badge variant="secondary">Desativado</Badge>
+                                )}
                                 {user.emailVerified && (
                                   <CheckCircle2 className="h-4 w-4 text-success" />
                                 )}
@@ -458,8 +542,44 @@ export default function AcessosPage() {
                                 )}
                               </div>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatRelativeTime(user.createdAt)}
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-muted-foreground mr-2">
+                                {formatRelativeTime(user.createdAt)}
+                              </span>
+                              <div className="flex items-center gap-0.5">
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => openEditUserModal(user)}
+                                  title="Editar perfil"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => handleToggleActive(user)}
+                                  title={user.isActive === false ? "Reativar conta" : "Desativar conta"}
+                                >
+                                  {user.isActive === false ? (
+                                    <UserCheck className="h-4 w-4 text-success" />
+                                  ) : (
+                                    <UserX className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    setUserToDelete(user);
+                                    setShowDeleteDialog(true);
+                                  }}
+                                  title="Excluir acesso"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </motion.div>
                         ))}
@@ -670,6 +790,93 @@ export default function AcessosPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditUserModal && editingUser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowEditUserModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-background rounded-xl shadow-xl w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold">Editar Usuário</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowEditUserModal(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="p-4 space-y-4">
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    {error}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{editingUser.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Perfil</label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  >
+                    <option value="ADMIN">Admin</option>
+                    <option value="CS_OWNER">CS Owner</option>
+                    <option value="CLIENT">Cliente</option>
+                    <option value="CLIENT_MEMBER">Membro do Cliente</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 p-4 border-t">
+                <Button variant="outline" onClick={() => setShowEditUserModal(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleUpdateUser}>Salvar</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AlertDialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open);
+          if (!open) setUserToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir acesso</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o acesso de {userToDelete?.name || userToDelete?.email}?
+              O usuário não poderá mais acessar a plataforma. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

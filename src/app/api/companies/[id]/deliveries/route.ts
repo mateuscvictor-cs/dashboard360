@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireCompanyAccess } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -7,6 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    await requireCompanyAccess(id);
 
     const deliveries = await prisma.delivery.findMany({
       where: { companyId: id },
@@ -15,6 +17,14 @@ export async function GET(
 
     return NextResponse.json(deliveries);
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Unauthorized" || error.message === "Forbidden") {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      }
+      if (error.message === "CompanyNotFound") {
+        return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
+      }
+    }
     console.error("Erro ao buscar entregas:", error);
     return NextResponse.json(
       { error: "Erro ao buscar entregas" },
@@ -29,6 +39,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    await requireCompanyAccess(id);
     const body = await request.json();
 
     const delivery = await prisma.delivery.create({
@@ -56,6 +67,14 @@ export async function POST(
 
     return NextResponse.json(delivery, { status: 201 });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Unauthorized" || error.message === "Forbidden") {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      }
+      if (error.message === "CompanyNotFound") {
+        return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
+      }
+    }
     console.error("Erro ao criar entrega:", error);
     return NextResponse.json(
       { error: "Erro ao criar entrega" },

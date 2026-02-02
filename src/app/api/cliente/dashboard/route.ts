@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth-server";
+import { requireRole } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+    const session = await requireRole(["CLIENT", "CLIENT_MEMBER"]);
 
     const user = session.user as { companyId?: string };
     if (!user.companyId) {
@@ -146,6 +143,9 @@ export async function GET() {
 
     return NextResponse.json(response);
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
     console.error("Erro ao buscar dashboard do cliente:", error);
     return NextResponse.json({ error: "Erro ao buscar dados" }, { status: 500 });
   }

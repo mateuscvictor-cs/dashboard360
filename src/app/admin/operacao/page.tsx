@@ -27,7 +27,6 @@ import {
   Search,
   ChevronRight,
   ExternalLink,
-  Copy,
   Trash2,
   Edit,
   Play,
@@ -114,6 +113,7 @@ export default function OperacaoPage() {
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [showApplyTemplate, setShowApplyTemplate] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ActivityTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<ActivityTemplate | null>(null);
   const [templates, setTemplates] = useState(mockTemplates);
   const [appliedTemplates, setAppliedTemplates] = useState(mockAppliedTemplates);
   const [csOwners, setCsOwners] = useState<DBCSOwner[]>([]);
@@ -153,11 +153,16 @@ export default function OperacaoPage() {
     dueDate: "",
   });
 
-  const [newTemplate, setNewTemplate] = useState({
+  const [newTemplate, setNewTemplate] = useState<{
+    name: string;
+    description: string;
+    category: string;
+    tasks: Array<{ id: string; title: string; description: string; priority: "high" | "medium" | "low"; estimatedMinutes: number }>;
+  }>({
     name: "",
     description: "",
     category: "custom",
-    tasks: [{ id: "new-1", title: "", description: "", priority: "medium" as const, estimatedMinutes: 15 }],
+    tasks: [{ id: "new-1", title: "", description: "", priority: "medium", estimatedMinutes: 15 }],
   });
 
   const [applyForm, setApplyForm] = useState({
@@ -238,6 +243,17 @@ export default function OperacaoPage() {
     }));
   };
 
+  const resetTemplateForm = () => {
+    setNewTemplate({
+      name: "",
+      description: "",
+      category: "custom",
+      tasks: [{ id: "new-1", title: "", description: "", priority: "medium" as const, estimatedMinutes: 15 }],
+    });
+    setEditingTemplate(null);
+    setShowNewTemplate(false);
+  };
+
   const handleCreateTemplate = () => {
     if (!newTemplate.name || newTemplate.tasks.some(t => !t.title)) return;
     
@@ -253,13 +269,50 @@ export default function OperacaoPage() {
     };
     
     setTemplates(prev => [...prev, template]);
+    resetTemplateForm();
+  };
+
+  const openEditModal = (template: ActivityTemplate) => {
+    setEditingTemplate(template);
     setNewTemplate({
-      name: "",
-      description: "",
-      category: "custom",
-      tasks: [{ id: "new-1", title: "", description: "", priority: "medium" as const, estimatedMinutes: 15 }],
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      tasks: template.tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        description: t.description ?? "",
+        priority: t.priority,
+        estimatedMinutes: t.estimatedMinutes ?? 15,
+      })),
     });
-    setShowNewTemplate(false);
+    setShowNewTemplate(true);
+  };
+
+  const handleUpdateTemplate = () => {
+    if (!editingTemplate || !newTemplate.name || newTemplate.tasks.some(t => !t.title)) return;
+    
+    const updated: ActivityTemplate = {
+      ...editingTemplate,
+      name: newTemplate.name,
+      description: newTemplate.description,
+      category: newTemplate.category as ActivityTemplate["category"],
+      tasks: newTemplate.tasks.map((t, index) => ({
+        id: t.id.startsWith("new-") ? `${editingTemplate.id}-new-${Date.now()}-${index}` : t.id,
+        title: t.title,
+        description: t.description || undefined,
+        priority: t.priority,
+        estimatedMinutes: t.estimatedMinutes,
+      })) as TemplateTask[],
+    };
+    
+    setTemplates(prev => prev.map(t => t.id === editingTemplate.id ? updated : t));
+    setAppliedTemplates(prev => prev.map(a =>
+      a.templateId === editingTemplate.id
+        ? { ...a, templateName: updated.name, totalTasks: updated.tasks.length }
+        : a
+    ));
+    resetTemplateForm();
   };
 
   const handleApplyTemplate = () => {
@@ -836,6 +889,7 @@ export default function OperacaoPage() {
                           key={template.id}
                           template={template}
                           onApply={() => openApplyModal(template)}
+                          onEdit={() => openEditModal(template)}
                         />
                       ))}
                     </div>
@@ -946,7 +1000,7 @@ export default function OperacaoPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() => setShowNewTemplate(false)}
+              onClick={resetTemplateForm}
             >
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -956,8 +1010,10 @@ export default function OperacaoPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between p-4 border-b">
-                  <h2 className="text-lg font-semibold">Criar Novo Template</h2>
-                  <Button variant="ghost" size="icon" onClick={() => setShowNewTemplate(false)}>
+                  <h2 className="text-lg font-semibold">
+                    {editingTemplate ? "Editar Template" : "Criar Novo Template"}
+                  </h2>
+                  <Button variant="ghost" size="icon" onClick={resetTemplateForm}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1060,16 +1116,25 @@ export default function OperacaoPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-2 p-4 border-t">
-                  <Button variant="outline" onClick={() => setShowNewTemplate(false)}>
+                  <Button variant="outline" onClick={resetTemplateForm}>
                     Cancelar
                   </Button>
-                  <Button 
+                  <Button
                     className="gap-2"
-                    onClick={handleCreateTemplate}
+                    onClick={editingTemplate ? handleUpdateTemplate : handleCreateTemplate}
                     disabled={!newTemplate.name || newTemplate.tasks.some(t => !t.title)}
                   >
-                    <Plus className="h-4 w-4" />
-                    Criar Template
+                    {editingTemplate ? (
+                      <>
+                        <Edit className="h-4 w-4" />
+                        Salvar alterações
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        Criar Template
+                      </>
+                    )}
                   </Button>
                 </div>
               </motion.div>
@@ -1281,7 +1346,7 @@ function CSCard({ cs }: { cs: DBCSOwner }) {
   );
 }
 
-function TemplateCard({ template, onApply }: { template: ActivityTemplate; onApply: () => void }) {
+function TemplateCard({ template, onApply, onEdit }: { template: ActivityTemplate; onApply: () => void; onEdit: () => void }) {
   const totalMinutes = template.tasks.reduce((acc, t) => acc + (t.estimatedMinutes || 0), 0);
   
   return (
@@ -1313,8 +1378,8 @@ function TemplateCard({ template, onApply }: { template: ActivityTemplate; onApp
             <Play className="h-3 w-3" />
             Aplicar
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Copy className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit} title="Editar template">
+            <Edit className="h-4 w-4" />
           </Button>
         </div>
       </CardContent>

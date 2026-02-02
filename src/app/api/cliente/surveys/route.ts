@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server"
-import { getSession } from "@/lib/auth-server"
+import { requireRole } from "@/lib/auth-server"
 import { surveyService } from "@/services/survey.service"
 import { prisma } from "@/lib/db"
 
 export async function GET(request: Request) {
   try {
-    const session = await getSession()
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
+    const session = await requireRole(["CLIENT", "CLIENT_MEMBER"])
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { companyId: true, role: true },
     })
 
-    if (!user || user.role !== "CLIENT" || !user.companyId) {
+    if (!user || !user.companyId) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 })
     }
 
@@ -50,6 +46,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json(surveys)
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
     console.error("Erro ao buscar pesquisas:", error)
     return NextResponse.json(
       { error: "Erro ao buscar pesquisas" },

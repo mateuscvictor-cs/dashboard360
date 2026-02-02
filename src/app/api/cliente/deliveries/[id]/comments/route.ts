@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSession } from "@/lib/auth-server"
+import { requireRole } from "@/lib/auth-server"
 import { prisma } from "@/lib/db"
 import { CommentType } from "@prisma/client"
 import { notificationService } from "@/services/notification.service"
@@ -9,10 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
+    const session = await requireRole(["CLIENT", "CLIENT_MEMBER"])
 
     const user = session.user as { companyId?: string }
     if (!user.companyId) {
@@ -48,6 +45,9 @@ export async function GET(
 
     return NextResponse.json(comments)
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
     console.error("Erro ao buscar comentários:", error)
     return NextResponse.json(
       { error: "Erro ao buscar comentários" },
@@ -61,10 +61,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
+    const session = await requireRole(["CLIENT", "CLIENT_MEMBER"])
 
     const user = session.user as { companyId?: string; id: string }
     if (!user.companyId) {
@@ -139,6 +136,9 @@ export async function POST(
 
     return NextResponse.json(comment, { status: 201 })
   } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
     console.error("Erro ao criar comentário:", error)
     return NextResponse.json(
       { error: "Erro ao criar comentário" },

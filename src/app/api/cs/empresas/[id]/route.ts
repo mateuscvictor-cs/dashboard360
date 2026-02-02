@@ -35,6 +35,11 @@ export async function GET(
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
     }
 
+    const canAccess = user.role === "ADMIN" || company.csOwnerId === user.csOwnerId;
+    if (!canAccess) {
+      return NextResponse.json({ error: "Sem permissão para acessar esta empresa" }, { status: 403 });
+    }
+
     const isOwner = company.csOwnerId === user.csOwnerId;
 
     return NextResponse.json({
@@ -70,7 +75,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
     }
 
-    if (company.csOwnerId !== user.csOwnerId) {
+    if (user.role !== "ADMIN" && company.csOwnerId !== user.csOwnerId) {
       return NextResponse.json({ error: "Sem permissão para editar esta empresa" }, { status: 403 });
     }
 

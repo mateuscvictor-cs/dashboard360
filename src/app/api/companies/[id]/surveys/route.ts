@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { requireRole } from "@/lib/auth-server"
+import { requireCompanyAccess } from "@/lib/auth-server"
 import { prisma } from "@/lib/db"
 
 export async function GET(
@@ -7,21 +7,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(["ADMIN", "CS_OWNER"])
-
     const { id } = await params
-
-    const company = await prisma.company.findUnique({
-      where: { id },
-      select: { id: true },
-    })
-
-    if (!company) {
-      return NextResponse.json(
-        { error: "Empresa não encontrada" },
-        { status: 404 }
-      )
-    }
+    await requireCompanyAccess(id)
 
     const surveys = await prisma.survey.findMany({
       where: { companyId: id },
@@ -42,12 +29,13 @@ export async function GET(
   } catch (error) {
     console.error("Erro ao buscar pesquisas:", error)
 
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
-
-    if (error instanceof Error && error.message === "Forbidden") {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 })
+    if (error instanceof Error) {
+      if (error.message === "Unauthorized" || error.message === "Forbidden") {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+      }
+      if (error.message === "CompanyNotFound") {
+        return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 })
+      }
     }
 
     return NextResponse.json(

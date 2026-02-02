@@ -14,15 +14,20 @@ export async function GET(
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
+    const user = session.user as { role?: string; csOwnerId?: string };
     const { id } = await params;
 
     const company = await prisma.company.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, csOwnerId: true },
     });
 
     if (!company) {
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
+    }
+
+    if (user.role !== "ADMIN" && company.csOwnerId !== user.csOwnerId) {
+      return NextResponse.json({ error: "Sem permissão para acessar esta empresa" }, { status: 403 });
     }
 
     const steps = await onboardingService.getByCompany(id);
