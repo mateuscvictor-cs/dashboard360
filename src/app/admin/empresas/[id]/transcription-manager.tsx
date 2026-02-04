@@ -72,7 +72,17 @@ export function TranscriptionManager({ companyId, csOwnerId }: TranscriptionMana
     const loadRecords = async () => {
         try {
             const data = await getMeetingRecords(companyId);
-            setRecords(data as MeetingRecord[]);
+            setRecords(
+                data.map((r) => ({
+                    id: r.id,
+                    title: r.title,
+                    date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10),
+                    transcription: r.transcription,
+                    summary: r.summary,
+                    actionItems: r.actionItems as ActionItem[] | null,
+                    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+                }))
+            );
         } catch (error) {
             console.error("Erro ao carregar transcrições:", error);
         } finally {
