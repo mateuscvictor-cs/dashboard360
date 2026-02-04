@@ -20,6 +20,7 @@ import {
   Bell,
   Shield,
   Trophy,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ const navSections: NavSection[] = [
       { name: "Entregas", href: "/admin/entregas", icon: Package, color: "from-rose-500 to-pink-500" },
       { name: "Agenda", href: "/admin/agenda", icon: Calendar, color: "from-teal-500 to-emerald-500" },
       { name: "Insights IA", href: "/admin/insights", icon: Sparkles, color: "from-pink-500 to-rose-500" },
+      { name: "Tutoriais", href: "/admin/tutoriais", icon: BookOpen, color: "from-sky-500 to-blue-500" },
     ],
   },
   {

@@ -36,6 +36,7 @@ export async function GET(request: Request) {
             name: true,
           },
         },
+        users: { select: { id: true } },
       },
       orderBy: [
         { healthScore: "asc" },

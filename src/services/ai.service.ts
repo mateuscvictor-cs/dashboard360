@@ -310,3 +310,50 @@ export async function generateInsights(
       throw new Error("Escopo inválido");
   }
 }
+
+type MeetingAnalysisResult = {
+  summary: string;
+  actionItems: {
+    description: string;
+    priority: "URGENT" | "HIGH" | "MEDIUM" | "LOW";
+    suggestedAssignee: string;
+    dueInDays: number;
+  }[];
+};
+
+export async function generateMeetingAnalysis(data: {
+  companyName: string;
+  meetingTitle: string;
+  meetingDate: string;
+  transcription: string;
+}): Promise<MeetingAnalysisResult | null> {
+  const { meetingTranscriptionPrompt } = await import("@/lib/prompts/insights");
+
+  const prompt = meetingTranscriptionPrompt(data);
+
+  try {
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um analista de Customer Success especializado em extrair insights de reuniões. Responda sempre em JSON válido.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.5,
+      max_tokens: 4000,
+      response_format: { type: "json_object" },
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) return null;
+
+    return JSON.parse(content) as MeetingAnalysisResult;
+  } catch (error) {
+    console.error("Erro ao analisar transcrição:", error);
+    return null;
+  }
+}

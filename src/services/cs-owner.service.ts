@@ -65,17 +65,20 @@ export const csOwnerService = {
               gte: new Date(new Date().setHours(0, 0, 0, 0)),
             },
           },
+          include: { company: { select: { id: true, name: true } } },
         },
         pendings: {
           where: {
             status: { not: "COMPLETED" },
           },
+          include: { company: { select: { id: true, name: true } } },
         },
         checklistItems: true,
         assignedDemands: {
           where: {
             status: { not: "COMPLETED" },
           },
+          include: { company: { select: { id: true, name: true } } },
         },
       },
       orderBy: { name: "asc" },

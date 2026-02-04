@@ -27,6 +27,7 @@ export async function GET(
           select: {
             id: true,
             feedback: true,
+            fathomLink: true,
             completedAt: true,
             completedBy: { select: { id: true, name: true } },
           },
@@ -68,6 +69,9 @@ export async function GET(
           orderBy: { createdAt: "desc" },
         },
         clientApprovedBy: {
+          select: { id: true, name: true },
+        },
+        adminApprovedBy: {
           select: { id: true, name: true },
         },
       },
@@ -122,9 +126,12 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {}
 
+    const validTypes = ["AUTOMATION", "IPC", "OTHER"]
     if (body.title !== undefined) updateData.title = body.title
     if (body.description !== undefined) updateData.description = body.description
     if (body.impactDescription !== undefined) updateData.impactDescription = body.impactDescription
+    if (body.type !== undefined) updateData.type = body.type && validTypes.includes(body.type) ? body.type : null
+    if (body.typeOtherSpec !== undefined) updateData.typeOtherSpec = body.typeOtherSpec ?? null
     if (body.status !== undefined) updateData.status = body.status
     if (body.progress !== undefined) updateData.progress = body.progress
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null

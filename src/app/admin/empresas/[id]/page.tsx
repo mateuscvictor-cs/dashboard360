@@ -29,6 +29,7 @@ import {
   Settings,
   ClipboardList,
   FolderOpen,
+  HelpCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,13 @@ import {
 } from "@/components/ui/select";
 import { calculateNextDate, formatDateShort } from "@/lib/utils";
 import { LogoUpload, ResourceManager, DiagnosticManager } from "@/components/company";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { TranscriptionManager } from "./transcription-manager";
 
 type CadenceType = "daily" | "weekly" | "biweekly" | "monthly" | "custom" | "";
 
@@ -92,8 +100,9 @@ const impacts = [
   { value: "low", label: "Baixo" },
 ];
 
+const CADENCE_NONE = "__none__";
 const cadences = [
-  { value: "", label: "Sem cadência" },
+  { value: CADENCE_NONE, label: "Sem cadência" },
   { value: "daily", label: "Diária" },
   { value: "weekly", label: "Semanal" },
   { value: "biweekly", label: "Quinzenal" },
@@ -181,7 +190,7 @@ export default function EditarEmpresaPage() {
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [csOwners, setCsOwners] = useState<CsOwnerOption[]>([]);
   const [squads, setSquads] = useState<SquadOption[]>([]);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     segment: "",
@@ -221,7 +230,7 @@ export default function EditarEmpresaPage() {
       if (companyRes.ok) {
         const data: CompanyData = await companyRes.json();
         setCompany(data);
-        
+
         setFormData({
           name: data.name,
           segment: data.segment || "",
@@ -439,7 +448,29 @@ export default function EditarEmpresaPage() {
                   )}
                 </Avatar>
                 <div>
-                  <h1 className="text-xl font-bold">{company.name}</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold">{company.name}</h1>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href="/admin/tutoriais/empresas">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                              aria-label="Aprenda a editar suas empresas"
+                            >
+                              <HelpCircle className="h-5 w-5" />
+                            </Button>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                          Aprenda a editar suas empresas
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {company.segment && <Badge variant="outline">{company.segment}</Badge>}
                     {company.framework && <Badge variant="secondary">{company.framework}</Badge>}
@@ -544,6 +575,10 @@ export default function EditarEmpresaPage() {
             <TabsTrigger value="diagnostico" className="gap-2">
               <ClipboardList className="h-4 w-4" />
               Diagnóstico
+            </TabsTrigger>
+            <TabsTrigger value="transcricoes" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Transcrições
             </TabsTrigger>
           </TabsList>
 
@@ -790,7 +825,10 @@ export default function EditarEmpresaPage() {
                           {impacts.map((i) => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Select value={delivery.cadence} onValueChange={(v) => updateDelivery(index, "cadence", v)}>
+                      <Select
+                        value={delivery.cadence === "" ? CADENCE_NONE : delivery.cadence}
+                        onValueChange={(v) => updateDelivery(index, "cadence", v === CADENCE_NONE ? "" : v)}
+                      >
                         <SelectTrigger><SelectValue placeholder="Cadência" /></SelectTrigger>
                         <SelectContent>
                           {cadences.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
@@ -937,6 +975,10 @@ export default function EditarEmpresaPage() {
 
           <TabsContent value="diagnostico">
             <DiagnosticManager companyId={id} />
+          </TabsContent>
+
+          <TabsContent value="transcricoes">
+            <TranscriptionManager companyId={id} csOwnerId={formData.csOwnerId || undefined} />
           </TabsContent>
         </Tabs>
       </div>

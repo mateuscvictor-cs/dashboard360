@@ -50,24 +50,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, formatRelativeTime } from "@/lib/utils";
-import {
-  mockTeamActivities,
-  mockPendings,
-  mockDemands,
-  mockTemplates,
-  mockAppliedTemplates,
-  mockSquads,
-  getCSOwnerById,
-  getTemplateById,
-  getSquadById,
-  type CSOwner,
-  type TeamActivity,
-  type Pending,
-  type Demand,
-  type ActivityTemplate,
-  type TemplateTask,
-  type AppliedTemplate,
-} from "@/lib/data/cs-mock";
+import type { TeamActivity, Pending, Demand, ActivityTemplate, TemplateTask, AppliedTemplate } from "@/lib/data/cs-mock";
 
 const categoryLabels: Record<string, string> = {
   daily: "Diário",
@@ -114,8 +97,9 @@ export default function OperacaoPage() {
   const [showApplyTemplate, setShowApplyTemplate] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ActivityTemplate | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<ActivityTemplate | null>(null);
-  const [templates, setTemplates] = useState(mockTemplates);
-  const [appliedTemplates, setAppliedTemplates] = useState(mockAppliedTemplates);
+  const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
+  const [appliedTemplates, setAppliedTemplates] = useState<AppliedTemplate[]>([]);
+  const [squads, setSquads] = useState<{ id: string; name: string; members?: unknown[] }[]>([]);
   const [csOwners, setCsOwners] = useState<DBCSOwner[]>([]);
   const [loadingCS, setLoadingCS] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -172,19 +156,67 @@ export default function OperacaoPage() {
   });
 
   useEffect(() => {
-    async function loadCSOwners() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/cs-owners");
-        if (res.ok) {
-          const data = await res.json();
+        const [csRes, squadsRes, templatesRes, appliedRes] = await Promise.all([
+          fetch("/api/cs-owners"),
+          fetch("/api/squads"),
+          fetch("/api/admin/activity-templates"),
+          fetch("/api/admin/applied-templates"),
+        ]);
+        if (csRes.ok) {
+          const data = await csRes.json();
           setCsOwners(data);
         }
+        if (squadsRes.ok) {
+          const data = await squadsRes.json();
+          setSquads(data);
+        }
+        if (templatesRes.ok) {
+          const data = await templatesRes.json();
+          setTemplates(
+            data.map((t: { id: string; name: string; description?: string; category: string; tasks: unknown[]; createdBy?: string; createdAt: string; isDefault: boolean }) => ({
+              id: t.id,
+              name: t.name,
+              description: t.description ?? "",
+              category: t.category?.toLowerCase() ?? "custom",
+              tasks: ((t.tasks ?? []) as { id: string; title: string; description?: string; priority: string; estimatedMinutes?: number }[]).map((task) => ({
+                id: task.id,
+                title: task.title,
+                description: task.description,
+                priority: (task.priority ?? "MEDIUM").toLowerCase(),
+                estimatedMinutes: task.estimatedMinutes,
+              })),
+              createdBy: t.createdBy ?? "",
+              createdAt: t.createdAt,
+              isDefault: t.isDefault ?? false,
+            }))
+          );
+        }
+        if (appliedRes.ok) {
+          const data = await appliedRes.json();
+          setAppliedTemplates(
+            data.map((a: { id: string; templateId: string; assignedToId: string | null; assignedToSquadId: string | null; assignedToSquad?: { id: string; name: string }; template?: { name: string; tasks: unknown[] }; appliedBy?: string; appliedAt: string; dueDate?: string; status: string; completedTasks: number }) => ({
+              id: a.id,
+              templateId: a.templateId,
+              templateName: a.template?.name ?? "",
+              assignedToId: a.assignedToId ?? null,
+              assignedToSquad: a.assignedToSquadId ?? (a.assignedToSquad?.id ?? null),
+              appliedBy: a.appliedBy ?? "",
+              appliedAt: a.appliedAt,
+              dueDate: a.dueDate ? new Date(a.dueDate).toISOString().split("T")[0] : "",
+              status: (a.status ?? "ACTIVE").toLowerCase(),
+              completedTasks: a.completedTasks ?? 0,
+              totalTasks: a.template?.tasks?.length ?? 0,
+            }))
+          );
+        }
       } catch (error) {
-        console.error("Erro ao carregar CS Owners:", error);
+        console.error("Erro ao carregar dados:", error);
       }
       setLoadingCS(false);
     }
-    loadCSOwners();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -209,18 +241,56 @@ export default function OperacaoPage() {
 
   const selectedCSOwner = selectedCS ? csOwners.find(cs => cs.id === selectedCS) : null;
 
+  const pendings = useMemo(() => {
+    return (csOwners as { pendings?: { id: string; csOwnerId: string; type: string; title: string; dueDate: string; priority?: string; status: string; company?: { id: string; name: string } }[] }[]).flatMap((cs) =>
+      (cs.pendings ?? []).map((p) => ({
+        ...p,
+        company: p.company?.name ?? "",
+        status: (p.status ?? "PENDING").toLowerCase(),
+        type: (p.type ?? "FOLLOWUP").toLowerCase(),
+        priority: ((p.priority ?? "MEDIUM") as string).toLowerCase(),
+        dueDate: typeof p.dueDate === "string" ? p.dueDate : (p.dueDate as unknown as Date)?.toISOString?.() ?? "",
+      }))
+    ) as Pending[];
+  }, [csOwners]);
+
+  const demands = useMemo(() => {
+    return (csOwners as { assignedDemands?: { id: string; title: string; description?: string; company?: { id: string; name: string }; assignedToId: string | null; priority?: string; status: string; type?: string; dueDate?: string; createdAt?: string; createdBy?: string }[] }[]).flatMap((cs) =>
+      (cs.assignedDemands ?? []).map((d) => ({
+        ...d,
+        company: d.company?.name ?? "",
+        status: (d.status ?? "OPEN").toLowerCase(),
+        priority: ((d.priority ?? "MEDIUM") as string).toLowerCase(),
+        type: ((d.type ?? "REQUEST") as string).toLowerCase(),
+        dueDate: d.dueDate ? (typeof d.dueDate === "string" ? d.dueDate : (d.dueDate as unknown as Date)?.toISOString?.() ?? "") : "",
+        createdAt: d.createdAt ? (typeof d.createdAt === "string" ? d.createdAt : (d.createdAt as unknown as Date)?.toISOString?.() ?? "") : "",
+      }))
+    ) as Demand[];
+  }, [csOwners]);
+
+  const activities = useMemo(() => {
+    return (csOwners as { activities?: { id: string; csOwnerId: string; type: string; description: string; timestamp: string; duration?: number; outcome?: string; company?: { id: string; name: string } }[] }[]).flatMap((cs) =>
+      (cs.activities ?? []).map((a) => ({
+        ...a,
+        company: a.company?.name ?? "",
+        type: (a.type ?? "NOTE").toLowerCase(),
+        timestamp: typeof a.timestamp === "string" ? a.timestamp : (a.timestamp as unknown as Date)?.toISOString?.() ?? "",
+      }))
+    ) as TeamActivity[];
+  }, [csOwners]);
+
   const totalCompleted = csOwners.reduce((acc, cs) => acc + cs.completedToday, 0);
   const totalPending = csOwners.reduce((acc, cs) => acc + cs.pendingTasks, 0);
-  const overduePendings = mockPendings.filter(p => p.status === "overdue").length;
-  const urgentDemands = mockDemands.filter(d => d.priority === "urgent" && d.status !== "completed").length;
+  const overduePendingsList = pendings.filter((p) => p.status === "overdue");
+  const urgentDemandsList = demands.filter((d) => d.priority === "urgent" && d.status !== "completed");
+  const overduePendings = overduePendingsList.length;
+  const urgentDemands = urgentDemandsList.length;
 
-  const filteredActivities = selectedCS 
-    ? mockTeamActivities.filter(a => a.csOwnerId === selectedCS)
-    : mockTeamActivities;
+  const filteredActivities = selectedCS ? activities.filter((a) => a.csOwnerId === selectedCS) : activities;
+  const filteredPendings = selectedCS ? pendings.filter((p) => p.csOwnerId === selectedCS) : pendings;
 
-  const filteredPendings = selectedCS
-    ? mockPendings.filter(p => p.csOwnerId === selectedCS)
-    : mockPendings;
+  const getCSOwnerById = (id: string) => csOwners.find((cs) => cs.id === id) ?? null;
+  const getSquadById = (id: string | null) => (id ? squads.find((s) => s.id === id) ?? null : null);
 
   const handleAddTask = () => {
     setNewTemplate(prev => ({
@@ -366,7 +436,7 @@ export default function OperacaoPage() {
           />
           <MetricCard
             label="Demandas Abertas"
-            value={mockDemands.filter(d => d.status !== "completed").length}
+            value={demands.filter((d) => d.status !== "completed").length}
             suffix={urgentDemands > 0 ? ` (${urgentDemands} urgentes)` : ""}
             icon={FileText}
             gradient="from-blue-500 to-cyan-500"
@@ -491,8 +561,8 @@ export default function OperacaoPage() {
                             </div>
                             <div className="text-right text-xs text-muted-foreground">
                               <p>{cs.accountsCount} contas</p>
-                              {mockPendings.filter(p => p.csOwnerId === cs.id && p.status === "overdue").length > 0 && (
-                                <p className="text-danger">{mockPendings.filter(p => p.csOwnerId === cs.id && p.status === "overdue").length} atrasadas</p>
+                              {pendings.filter((p) => p.csOwnerId === cs.id && p.status === "overdue").length > 0 && (
+                                <p className="text-danger">{pendings.filter((p) => p.csOwnerId === cs.id && p.status === "overdue").length} atrasadas</p>
                               )}
                             </div>
                           </div>
@@ -600,9 +670,9 @@ export default function OperacaoPage() {
                                       <span className="font-semibold">{cs.completedToday}</span>
                                       <span className="text-muted-foreground text-sm"> / {total}</span>
                                     </div>
-                                    {mockPendings.filter(p => p.csOwnerId === cs.id && p.status === "overdue").length > 0 && (
+                                    {pendings.filter((p) => p.csOwnerId === cs.id && p.status === "overdue").length > 0 && (
                                       <Badge variant="danger" size="sm">
-                                        {mockPendings.filter(p => p.csOwnerId === cs.id && p.status === "overdue").length} atrasadas
+                                        {pendings.filter((p) => p.csOwnerId === cs.id && p.status === "overdue").length} atrasadas
                                       </Badge>
                                     )}
                                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -638,8 +708,8 @@ export default function OperacaoPage() {
                             : applied.assignedToSquad 
                               ? getSquadById(applied.assignedToSquad)
                               : null;
-                          const progress = Math.round((applied.completedTasks / applied.totalTasks) * 100);
-                          
+                          const progress = applied.totalTasks > 0 ? Math.round((applied.completedTasks / applied.totalTasks) * 100) : 0;
+                          const assigneeName = applied.assignedToId ? (assignee as { name: string })?.name : assignee ? `Squad: ${(assignee as { name: string })?.name}` : "";
                           return (
                             <div key={applied.id} className="flex items-center gap-3 p-3 rounded-lg border">
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -648,7 +718,7 @@ export default function OperacaoPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-sm">{applied.templateName}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {applied.assignedToId ? (assignee as { name: string })?.name : `Squad: ${(assignee as { name: string })?.name}`}
+                                  {assigneeName}
                                 </p>
                               </div>
                               <div className="text-right">
@@ -672,19 +742,38 @@ export default function OperacaoPage() {
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {overduePendings > 0 && (
-                          <div className="rounded-lg border border-danger/30 bg-danger/5 p-3">
+                          <div className="rounded-lg border border-danger/30 bg-danger/5 p-3 space-y-2">
                             <div className="flex items-center gap-2 text-danger">
-                              <AlertCircle className="h-4 w-4" />
+                              <AlertCircle className="h-4 w-4 shrink-0" />
                               <span className="font-medium text-sm">{overduePendings} pendências atrasadas</span>
                             </div>
+                            <ul className="text-sm text-foreground space-y-1.5 pl-6">
+                              {overduePendingsList.map((p) => (
+                                <li key={p.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-medium">{p.title}</span>
+                                  <span className="text-muted-foreground">— {p.company}</span>
+                                  {p.dueDate && (
+                                    <span className="text-muted-foreground text-xs">venc. {formatDate(p.dueDate)}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         )}
                         {urgentDemands > 0 && (
-                          <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
+                          <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 space-y-2">
                             <div className="flex items-center gap-2 text-warning">
-                              <AlertTriangle className="h-4 w-4" />
+                              <AlertTriangle className="h-4 w-4 shrink-0" />
                               <span className="font-medium text-sm">{urgentDemands} demandas urgentes</span>
                             </div>
+                            <ul className="text-sm text-foreground space-y-1.5 pl-6">
+                              {urgentDemandsList.map((d) => (
+                                <li key={d.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-medium">{d.title}</span>
+                                  <span className="text-muted-foreground">— {d.company}</span>
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         )}
                         {overduePendings === 0 && urgentDemands === 0 && (
@@ -837,8 +926,8 @@ export default function OperacaoPage() {
                           : applied.assignedToSquad 
                             ? getSquadById(applied.assignedToSquad)
                             : null;
-                        const progress = Math.round((applied.completedTasks / applied.totalTasks) * 100);
-                        
+                        const progress = applied.totalTasks > 0 ? Math.round((applied.completedTasks / applied.totalTasks) * 100) : 0;
+                        const assigneeLabel = applied.assignedToId ? (assignee as { name: string })?.name : assignee ? `Squad: ${(assignee as { name: string })?.name}` : "";
                         return (
                           <motion.div
                             key={applied.id}
@@ -857,7 +946,7 @@ export default function OperacaoPage() {
                               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   {applied.assignedToId ? <User className="h-3 w-3" /> : <UsersRound className="h-3 w-3" />}
-                                  {applied.assignedToId ? (assignee as { name: string })?.name : `Squad: ${(assignee as { name: string })?.name}`}
+                                  {assigneeLabel}
                                 </span>
                                 <span>Prazo: {formatDate(applied.dueDate)}</span>
                               </div>
@@ -921,7 +1010,7 @@ export default function OperacaoPage() {
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.03 }}
                         >
-                          <ActivityRow activity={activity} showCS={!selectedCS} />
+                          <ActivityRow activity={activity} showCS={!selectedCS} csOwners={csOwners} />
                         </motion.div>
                       ))}
                     </div>
@@ -938,7 +1027,7 @@ export default function OperacaoPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {filteredPendings.filter(p => p.status === "overdue").map((pending) => (
-                        <PendingRow key={pending.id} pending={pending} showCS={!selectedCS} />
+                        <PendingRow key={pending.id} pending={pending} showCS={!selectedCS} csOwners={csOwners} />
                       ))}
                       {filteredPendings.filter(p => p.status === "overdue").length === 0 && (
                         <div className="text-center py-8">
@@ -956,7 +1045,7 @@ export default function OperacaoPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {filteredPendings.filter(p => p.status === "pending").map((pending) => (
-                        <PendingRow key={pending.id} pending={pending} showCS={!selectedCS} />
+                        <PendingRow key={pending.id} pending={pending} showCS={!selectedCS} csOwners={csOwners} />
                       ))}
                     </CardContent>
                   </Card>
@@ -971,8 +1060,8 @@ export default function OperacaoPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {mockDemands.map((demand) => (
-                        <DemandRow key={demand.id} demand={demand} />
+                      {demands.map((demand) => (
+                        <DemandRow key={demand.id} demand={demand} csOwners={csOwners} />
                       ))}
                     </div>
                   </CardContent>
@@ -1203,8 +1292,8 @@ export default function OperacaoPage() {
                           <option key={cs.id} value={cs.id}>{cs.name} - {cs.role}</option>
                         ))
                       ) : (
-                        mockSquads.map(squad => (
-                          <option key={squad.id} value={squad.id}>{squad.name} ({squad.members.length} membros)</option>
+                        squads.map((squad) => (
+                          <option key={squad.id} value={squad.id}>{squad.name} ({(squad.members?.length ?? 0)} membros)</option>
                         ))
                       )}
                     </select>
@@ -1387,8 +1476,8 @@ function TemplateCard({ template, onApply, onEdit }: { template: ActivityTemplat
   );
 }
 
-function ActivityRow({ activity, showCS = true }: { activity: TeamActivity; showCS?: boolean }) {
-  const csOwner = getCSOwnerById(activity.csOwnerId);
+function ActivityRow({ activity, showCS = true, csOwners }: { activity: TeamActivity; showCS?: boolean; csOwners: DBCSOwner[] }) {
+  const csOwner = csOwners.find((c) => c.id === activity.csOwnerId) ?? null;
   
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border hover:shadow-sm transition-all">
@@ -1436,8 +1525,8 @@ function ActivityRow({ activity, showCS = true }: { activity: TeamActivity; show
   );
 }
 
-function PendingRow({ pending, showCS = true }: { pending: Pending; showCS?: boolean }) {
-  const csOwner = getCSOwnerById(pending.csOwnerId);
+function PendingRow({ pending, showCS = true, csOwners }: { pending: Pending; showCS?: boolean; csOwners: DBCSOwner[] }) {
+  const csOwner = csOwners.find((c) => c.id === pending.csOwnerId) ?? null;
   
   return (
     <div className={cn(
@@ -1491,8 +1580,8 @@ function PendingRow({ pending, showCS = true }: { pending: Pending; showCS?: boo
   );
 }
 
-function DemandRow({ demand }: { demand: Demand }) {
-  const assignedTo = demand.assignedToId ? getCSOwnerById(demand.assignedToId) : null;
+function DemandRow({ demand, csOwners }: { demand: Demand; csOwners: DBCSOwner[] }) {
+  const assignedTo = demand.assignedToId ? csOwners.find((c) => c.id === demand.assignedToId) ?? null : null;
   
   return (
     <motion.div

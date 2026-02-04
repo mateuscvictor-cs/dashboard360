@@ -22,11 +22,14 @@ import {
   User,
   Mail,
   Link as LinkIcon,
+  ShieldCheck,
+  Star,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -102,6 +105,12 @@ type Delivery = {
   assignee: string | null;
   blockers: string[];
   impact: string;
+  type: string | null;
+  typeOtherSpec: string | null;
+  adminApprovalStatus: string | null;
+  adminScore: number | null;
+  adminApprovedAt: string | null;
+  adminApprovedBy: { id: string; name: string } | null;
   clientApprovalStatus: string | null;
   createdAt: string;
   updatedAt: string;
@@ -114,6 +123,7 @@ type Delivery = {
   completion: {
     id: string;
     feedback: string;
+    fathomLink: string | null;
     completedAt: string;
     completedBy: { id: string; name: string };
   } | null;
@@ -150,8 +160,15 @@ const documentTypeConfig: Record<string, { label: string; icon: typeof FileText 
   SPREADSHEET: { label: "Planilha", icon: FileText },
   PDF: { label: "PDF", icon: FileText },
   VIDEO: { label: "Vídeo", icon: Video },
+  IMAGE: { label: "Imagem", icon: FileText },
   LINK: { label: "Link", icon: LinkIcon },
   OTHER: { label: "Outro", icon: FileText },
+};
+
+const deliveryTypeConfig: Record<string, string> = {
+  AUTOMATION: "Automação",
+  IPC: "IPC",
+  OTHER: "Outro",
 };
 
 export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -163,6 +180,8 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [showDocumentForm, setShowDocumentForm] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [adminScore, setAdminScore] = useState("");
 
   useEffect(() => {
     fetchDelivery();
@@ -227,6 +246,40 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
       }
     } catch (error) {
       console.error("Erro ao excluir documento:", error);
+    }
+  };
+
+  const handleAdminApprove = async (action: "approve" | "request_changes") => {
+    if (action === "approve") {
+      const score = Number(adminScore);
+      if (Number.isNaN(score) || score < 0 || score > 10) {
+        alert("Informe uma nota entre 0 e 10.");
+        return;
+      }
+    }
+    setApproving(true);
+    try {
+      const response = await fetch(`/api/admin/deliveries/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          action === "approve"
+            ? { action: "approve", score: Number(adminScore) }
+            : { action: "request_changes" }
+        ),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setAdminScore("");
+        fetchDelivery();
+      } else {
+        alert(data.error || "Erro ao processar aprovação.");
+      }
+    } catch (error) {
+      console.error("Erro ao aprovar entrega:", error);
+      alert("Erro ao processar aprovação.");
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -321,6 +374,15 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
                     </div>
                   )}
                   
+                  {(delivery.type || delivery.typeOtherSpec) && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Tipo da entrega</label>
+                      <p className="mt-1">
+                        {delivery.type ? deliveryTypeConfig[delivery.type] ?? delivery.type : "—"}
+                        {delivery.type === "OTHER" && delivery.typeOtherSpec ? ` — ${delivery.typeOtherSpec}` : ""}
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm text-muted-foreground">Progresso</label>
@@ -391,6 +453,118 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
                   <div>
                     <label className="text-sm text-muted-foreground">Feedback</label>
                     <p className="mt-1 text-sm">{delivery.completion.feedback}</p>
+                  </div>
+                  {delivery.completion.fathomLink && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Fathom</label>
+                      <p className="mt-1">
+                        <a
+                          href={delivery.completion.fathomLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline flex items-center gap-1"
+                        >
+                          <LinkIcon className="h-3.5 w-3.5" />
+                          Abrir gravação
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                  {delivery.documents.length > 0 && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Provas / Documentos</label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {delivery.documents.map((doc) => {
+                          const docType = documentTypeConfig[doc.type] || documentTypeConfig.OTHER;
+                          return (
+                            <a
+                              key={doc.id}
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline px-2 py-1 rounded border border-border"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              {doc.title}
+                              <span className="text-muted-foreground text-xs">({docType})</span>
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {delivery.adminApprovalStatus === "PENDING_ADMIN_APPROVAL" && delivery.completion && (
+              <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-500/30 dark:bg-amber-500/5">
+                <CardHeader>
+                  <CardTitle className="text-base text-amber-800 dark:text-amber-400 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4" />
+                    Aprovar entrega (admin)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Revise o feedback, o Fathom e as provas acima. Aprove para enviar ao cliente ou solicite alterações.
+                  </p>
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Nota (0 a 10)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={0.5}
+                        value={adminScore}
+                        onChange={(e) => setAdminScore(e.target.value)}
+                        placeholder="Ex: 8.5"
+                        className="w-24"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        disabled={approving}
+                        onClick={() => handleAdminApprove("approve")}
+                      >
+                        {approving ? "..." : "Aprovar e enviar ao cliente"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={approving}
+                        onClick={() => handleAdminApprove("request_changes")}
+                      >
+                        Solicitar alterações
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {delivery.adminApprovalStatus === "APPROVED_BY_ADMIN" && (
+              <Card className="border-green-200 bg-green-50/50 dark:border-green-500/30 dark:bg-green-500/5">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div>
+                    <p className="font-medium text-green-800 dark:text-green-300">
+                      Aprovado pelo admin
+                      {delivery.adminScore != null && (
+                        <span className="ml-2 inline-flex items-center gap-0.5">
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                          {delivery.adminScore}
+                        </span>
+                      )}
+                    </p>
+                    {delivery.adminApprovedBy && (
+                      <p className="text-sm text-muted-foreground">
+                        Por {delivery.adminApprovedBy.name}
+                        {delivery.adminApprovedAt && ` em ${formatDateTime(delivery.adminApprovedAt)}`}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

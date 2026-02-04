@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db"
-import type { SurveyType, SurveyStatus } from "@prisma/client"
+import type { SurveyType, SurveyStatus, DocumentType } from "@prisma/client"
 import type { CreateSurveyInput, RespondSurveyInput, CompleteDeliveryInput } from "@/types/survey.types"
 
 export const surveyService = {
@@ -108,12 +108,16 @@ export const surveyService = {
       throw new Error("Entrega não encontrada")
     }
 
+    const proofDocs = data.proofDocuments ?? []
+    const validDocTypes = ["PRESENTATION", "SPREADSHEET", "PDF", "VIDEO", "IMAGE", "LINK", "OTHER"]
+
     const [completion, updatedDelivery, csatSurvey, adoptionSurvey] = await prisma.$transaction([
       prisma.deliveryCompletion.create({
         data: {
           deliveryId: data.deliveryId,
           completedById: data.completedById,
           feedback: data.feedback,
+          fathomLink: data.fathomLink.trim(),
         },
       }),
       prisma.delivery.update({
@@ -121,6 +125,7 @@ export const surveyService = {
         data: {
           status: "COMPLETED",
           progress: 100,
+          adminApprovalStatus: "PENDING_ADMIN_APPROVAL",
         },
       }),
       prisma.survey.create({
@@ -142,6 +147,18 @@ export const surveyService = {
         },
       }),
     ])
+
+    if (proofDocs.length > 0) {
+      await prisma.deliveryDocument.createMany({
+        data: proofDocs.map((p) => ({
+          title: p.title || "Prova",
+          url: p.url,
+          type: (validDocTypes.includes(p.type) ? p.type : "OTHER") as DocumentType,
+          deliveryId: data.deliveryId,
+          uploadedById: data.completedById,
+        })),
+      })
+    }
 
     await prisma.timelineEvent.create({
       data: {

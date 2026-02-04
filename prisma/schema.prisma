@@ -203,6 +203,7 @@ enum DocumentType {
   SPREADSHEET
   PDF
   VIDEO
+  IMAGE
   LINK
   OTHER
 }
@@ -233,6 +234,18 @@ enum ClientApprovalStatus {
   PENDING_APPROVAL
   APPROVED
   CHANGES_REQUESTED
+}
+
+enum DeliveryType {
+  AUTOMATION
+  IPC
+  OTHER
+}
+
+enum AdminApprovalStatus {
+  PENDING_ADMIN_APPROVAL
+  APPROVED_BY_ADMIN
+  CHANGES_REQUESTED_BY_ADMIN
 }
 
 enum OnboardingStepType {
@@ -300,6 +313,7 @@ model User {
   createdResources      ClientResource[]
   integrations          UserIntegration[]
   approvedDeliveries    Delivery[]        @relation("DeliveryApprovedBy")
+  adminApprovedDeliveries Delivery[]      @relation("DeliveryAdminApprovedBy")
   deliveryComments      DeliveryComment[]
   receivedNotifications Notification[]    @relation("NotificationRecipient")
   sentNotifications     Notification[]    @relation("NotificationSender")
@@ -483,6 +497,7 @@ model Company {
   notifications    Notification[]
   onboardingSteps  OnboardingStep[]
   diagnosticForms  DiagnosticForm[]
+  meetingRecords   MeetingRecord[]
 
   @@map("companies")
 }
@@ -607,6 +622,8 @@ model Delivery {
   title                String
   description          String?
   impactDescription    String?
+  type                 DeliveryType?
+  typeOtherSpec        String?
   status               DeliveryStatus       @default(PENDING)
   progress             Int                  @default(0)
   dueDate              DateTime?
@@ -616,6 +633,9 @@ model Delivery {
   cadence              Cadence?
   clientApprovalStatus ClientApprovalStatus?
   clientApprovedAt     DateTime?
+  adminApprovalStatus  AdminApprovalStatus?
+  adminApprovedAt      DateTime?
+  adminScore           Float?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 
@@ -624,6 +644,8 @@ model Delivery {
 
   clientApprovedBy   User?   @relation("DeliveryApprovedBy", fields: [clientApprovedById], references: [id])
   clientApprovedById String?
+  adminApprovedBy    User?   @relation("DeliveryAdminApprovedBy", fields: [adminApprovedById], references: [id])
+  adminApprovedById  String?
 
   surveys          Survey[]
   completion       DeliveryCompletion?
@@ -896,6 +918,22 @@ model Meeting {
   @@map("meetings")
 }
 
+model MeetingRecord {
+  id            String   @id @default(cuid())
+  title         String
+  date          DateTime
+  transcription String   @db.Text
+  summary       String?  @db.Text
+  actionItems   Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  @@map("meeting_records")
+}
+
 model Survey {
   id          String       @id @default(cuid())
   type        SurveyType
@@ -952,6 +990,7 @@ model SurveyResponse {
 model DeliveryCompletion {
   id          String   @id @default(cuid())
   feedback    String
+  fathomLink  String?
   completedAt DateTime @default(now())
 
   delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
@@ -1387,6 +1426,7 @@ model CSPerformanceSnapshot {
   scorePortfolio   Float @default(0)
   scoreEngagement  Float @default(0)
   scoreSatisfaction Float @default(0)
+  deliveryScoreAverage Float?
   performanceScore Float @default(0)
 
   ranking Int @default(0)

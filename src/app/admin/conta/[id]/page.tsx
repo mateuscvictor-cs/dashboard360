@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -23,8 +23,16 @@ import {
   ArrowRight,
   Send,
   Settings,
+  HelpCircle,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { TOUR_START_PARAM } from "@/lib/tour-nova-empresa-steps";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -174,6 +182,7 @@ const timelineTypeConfig: Record<string, { icon: typeof Activity; color: string 
 
 export default function AccountPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [company, setCompany] = useState<Company | null>(null);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
@@ -290,9 +299,31 @@ export default function AccountPage() {
   ].filter(item => new Date(item.date) >= new Date())
    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+  const tourTriggerButton = (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+            aria-label="Aprenda a cadastrar e editar empresas"
+            onClick={() => router.push(`/admin/empresas/nova?${TOUR_START_PARAM}=1`)}
+          >
+            <HelpCircle className="h-5 w-5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          Aprenda a cadastrar e editar empresas
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
   return (
     <div className="flex flex-col h-full">
-      <Header title={company.name} subtitle={company.segment || "Empresa"} showFilters={false} />
+      <Header title={company.name} subtitle={company.segment || "Empresa"} showFilters={false} action={tourTriggerButton} />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -309,6 +340,7 @@ export default function AccountPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-bold">{company.name}</h1>
+                  {tourTriggerButton}
                   <Badge className={healthStatus.color}>{healthStatus.label}</Badge>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">

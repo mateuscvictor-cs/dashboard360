@@ -22,6 +22,29 @@ export async function POST(
       )
     }
 
+    if (!body.fathomLink || typeof body.fathomLink !== "string" || !body.fathomLink.trim()) {
+      return NextResponse.json(
+        { error: "Link do Fathom é obrigatório" },
+        { status: 400 }
+      )
+    }
+
+    const proofDocuments = Array.isArray(body.proofDocuments) ? body.proofDocuments : []
+    if (proofDocuments.length === 0) {
+      return NextResponse.json(
+        { error: "É obrigatório anexar ao menos uma prova (print, documento ou vídeo)" },
+        { status: 400 }
+      )
+    }
+    for (const p of proofDocuments) {
+      if (!p.url || typeof p.url !== "string" || !p.url.trim()) {
+        return NextResponse.json(
+          { error: "Cada prova deve ter título e URL" },
+          { status: 400 }
+        )
+      }
+    }
+
     const delivery = await prisma.delivery.findUnique({
       where: { id },
       include: {
@@ -82,6 +105,12 @@ export async function POST(
       deliveryId: id,
       completedById,
       feedback: body.feedback.trim(),
+      fathomLink: body.fathomLink.trim(),
+      proofDocuments: proofDocuments.map((p: { title?: string; url: string; type?: string }) => ({
+        title: (p.title && String(p.title).trim()) || "Prova",
+        url: String(p.url).trim(),
+        type: p.type && ["PRESENTATION", "SPREADSHEET", "PDF", "VIDEO", "IMAGE", "LINK", "OTHER"].includes(p.type) ? p.type : "OTHER",
+      })),
     })
 
     notificationService.notifyDeliveryCompleted(delivery as never).catch(console.error)

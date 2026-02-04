@@ -218,24 +218,29 @@ export default function AcessosPage() {
         body: JSON.stringify({ isActive: !(user.isActive ?? true) }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || "Erro ao alterar status");
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isActive: data.isActive } : u)));
-    } catch {
-      console.error("Erro ao alterar status do usuário");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao alterar status do usuário");
     }
   };
 
-  const handleDeleteUser = async () => {
+  const [deleting, setDeleting] = useState(false);
+  const handleDeleteUser = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!userToDelete) return;
+    setDeleting(true);
     try {
       const res = await fetch(`/api/admin/users/${userToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir");
       setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
       setShowDeleteDialog(false);
       setUserToDelete(null);
-    } catch {
-      console.error("Erro ao excluir usuário");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir usuário");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -869,10 +874,14 @@ export default function AcessosPage() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteUser}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteUser(e as unknown as React.MouseEvent);
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
             >
-              Excluir
+              {deleting ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

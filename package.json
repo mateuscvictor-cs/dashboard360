@@ -14,7 +14,11 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "deploy": "vercel --prod",
+    "deploy:account1": "vercel --prod --scope %VERCEL_SCOPE_ACCOUNT1%",
+    "deploy:account2": "vercel --prod --scope %VERCEL_SCOPE_ACCOUNT2%",
+    "deploy:both": "npm run deploy:account1 && npm run deploy:account2"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

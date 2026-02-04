@@ -145,3 +145,39 @@ REGRAS:
 - Identifique riscos sistêmicos
 - Sugira ações que impactem múltiplas contas
 - Aponte oportunidades de escala`;
+
+export const meetingTranscriptionPrompt = (data: {
+  companyName: string;
+  meetingTitle: string;
+  meetingDate: string;
+  transcription: string;
+}) => `
+Analise a transcrição de reunião abaixo e gere um resumo executivo e lista de próximos passos.
+
+CONTEXTO:
+- Empresa: ${data.companyName}
+- Reunião: ${data.meetingTitle}
+- Data: ${data.meetingDate}
+
+TRANSCRIÇÃO:
+${data.transcription}
+
+Responda no formato JSON:
+{
+  "summary": "Resumo executivo da reunião em 2-4 parágrafos. Destaque decisões tomadas, pontos principais discutidos e conclusões.",
+  "actionItems": [
+    {
+      "description": "Descrição clara da tarefa/próximo passo",
+      "priority": "URGENT" | "HIGH" | "MEDIUM" | "LOW",
+      "suggestedAssignee": "Quem deve executar (CS, Cliente, ou nome mencionado)",
+      "dueInDays": 7
+    }
+  ]
+}
+
+REGRAS:
+- O resumo deve ser objetivo e capturar a essência da reunião
+- Extraia TODOS os próximos passos mencionados ou implícitos
+- Priorize baseado em urgência e impacto mencionados
+- Se não houver próximos passos claros, sugira baseado no contexto
+- Máximo de 10 action items`;

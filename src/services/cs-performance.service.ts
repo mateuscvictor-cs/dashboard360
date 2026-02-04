@@ -90,6 +90,8 @@ export const csPerformanceService = {
           status: true,
           dueDate: true,
           updatedAt: true,
+          adminApprovalStatus: true,
+          adminScore: true,
         },
       }),
       prisma.teamActivity.findMany({
@@ -170,6 +172,13 @@ export const csPerformanceService = {
       ? csatResponses.reduce((sum, n) => sum + n, 0) / csatResponses.length
       : 0;
 
+    const approvedByAdminDeliveries = deliveries.filter(
+      d => d.adminApprovalStatus === "APPROVED_BY_ADMIN" && d.adminScore != null
+    );
+    const deliveryScoreAverage = approvedByAdminDeliveries.length > 0
+      ? approvedByAdminDeliveries.reduce((sum, d) => sum + (d.adminScore ?? 0), 0) / approvedByAdminDeliveries.length
+      : null;
+
     return {
       deliveriesTotal: deliveries.length,
       deliveriesOnTime: deliveriesOnTime.length,
@@ -188,6 +197,7 @@ export const csPerformanceService = {
       demandsCompleted,
       npsAverage,
       csatAverage,
+      deliveryScoreAverage,
     };
   },
 
@@ -280,6 +290,7 @@ export const csPerformanceService = {
 
     const dateOnly = new Date(date.toISOString().split("T")[0]);
 
+    const { deliveryScoreAverage, ...metricsRest } = metrics as typeof metrics & { deliveryScoreAverage: number | null };
     return prisma.cSPerformanceSnapshot.upsert({
       where: {
         csOwnerId_date: {
@@ -288,7 +299,8 @@ export const csPerformanceService = {
         },
       },
       update: {
-        ...metrics,
+        ...metricsRest,
+        deliveryScoreAverage: deliveryScoreAverage ?? undefined,
         scoreExecution: scores.execution.subtotal,
         scorePortfolio: scores.portfolio.subtotal,
         scoreEngagement: scores.engagement.subtotal,
@@ -298,7 +310,8 @@ export const csPerformanceService = {
       create: {
         csOwnerId,
         date: dateOnly,
-        ...metrics,
+        ...metricsRest,
+        deliveryScoreAverage: deliveryScoreAverage ?? undefined,
         scoreExecution: scores.execution.subtotal,
         scorePortfolio: scores.portfolio.subtotal,
         scoreEngagement: scores.engagement.subtotal,

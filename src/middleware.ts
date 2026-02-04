@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT";
+type UserRole = "ADMIN" | "CS_OWNER" | "CLIENT" | "CLIENT_MEMBER";
 
 const PUBLIC_ROUTES = ["/", "/login", "/registro", "/esqueci-senha", "/redefinir-senha", "/verificar-email", "/convite", "/diagnostico"];
 
@@ -14,6 +14,7 @@ function getRedirectUrl(role: UserRole): string {
     case "ADMIN": return "/admin";
     case "CS_OWNER": return "/cs";
     case "CLIENT": return "/cliente/dashboard";
+    case "CLIENT_MEMBER": return "/membro";
     default: return "/";
   }
 }
@@ -22,6 +23,7 @@ function canAccessRoute(role: UserRole, pathname: string): boolean {
   if (role === "ADMIN") return true;
   if (role === "CS_OWNER") return pathname.startsWith("/cs");
   if (role === "CLIENT") return pathname.startsWith("/cliente");
+  if (role === "CLIENT_MEMBER") return pathname.startsWith("/membro") || pathname.startsWith("/cliente/recursos"); // Members share resources route if needed, or stick to /membro
   return false;
 }
 
@@ -32,9 +34,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const sessionToken = request.cookies.get("authjs.session-token")?.value || 
-                       request.cookies.get("__Secure-authjs.session-token")?.value;
-  
+  const sessionToken = request.cookies.get("authjs.session-token")?.value ||
+    request.cookies.get("__Secure-authjs.session-token")?.value;
+
   const isAuthenticated = !!sessionToken;
   const isPublic = isPublicRoute(pathname);
 

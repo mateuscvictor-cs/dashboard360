@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -28,6 +28,9 @@ import {
   AlertCircle,
   Brain,
   FileUp,
+  FileSpreadsheet,
+  Zap,
+  HelpCircle,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { Header } from "@/components/layout/header";
@@ -35,6 +38,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wizard, WizardContent } from "@/components/ui/wizard";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { GuidedTour } from "@/components/tour/guided-tour";
+import {
+  TOUR_NOVA_EMPRESA_STEPS,
+  TOUR_STORAGE_KEY,
+  TOUR_START_PARAM,
+  TOUR_START_STORAGE_KEY,
+} from "@/lib/tour-nova-empresa-steps";
 import { cn } from "@/lib/utils";
 import type { ExtractedContractData } from "@/lib/prompts/contract-extraction";
 
@@ -108,16 +124,19 @@ const wizardSteps = [
   { id: "documents", title: "Docs" },
 ];
 
-type ImportMode = "manual" | "contract";
+type ImportMode = "manual" | "contract" | "csv" | "quick";
 
 type CSOwnerOption = { id: string; name: string };
 type SquadOption = { id: string; name: string };
 
 export default function NovaEmpresaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [importMode, setImportMode] = useState<ImportMode | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -128,6 +147,22 @@ export default function NovaEmpresaPage() {
   const [csOwners, setCsOwners] = useState<CSOwnerOption[]>([]);
   const [squads, setSquads] = useState<SquadOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
+
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvDragging, setCsvDragging] = useState(false);
+  const [csvImportLoading, setCsvImportLoading] = useState(false);
+  const [csvImportResult, setCsvImportResult] = useState<{
+    created: number;
+    skipped: number;
+    errors: number;
+    skippedDetails: { row: number; name: string; reason: string }[];
+    errorDetails: { row: number; name: string; message: string }[];
+  } | null>(null);
+
+  const [quickPasteText, setQuickPasteText] = useState("");
+  const [quickRows, setQuickRows] = useState<{ name: string; csOwnerId: string }[]>([]);
+  const [quickLoading, setQuickLoading] = useState(false);
+  const [quickResult, setQuickResult] = useState<{ created: number; skipped: number; errors: number } | null>(null);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -155,6 +190,63 @@ export default function NovaEmpresaPage() {
     
     fetchOptions();
   }, []);
+
+  useEffect(() => {
+    const fromParam = searchParams.get(TOUR_START_PARAM) === "1";
+    const fromStorage = typeof sessionStorage !== "undefined" && sessionStorage.getItem(TOUR_START_STORAGE_KEY);
+    if (fromParam || fromStorage) {
+      setTourOpen(true);
+      setTourStep(0);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete(TOUR_START_PARAM);
+        window.history.replaceState({}, "", url.pathname + url.search);
+        sessionStorage.removeItem(TOUR_START_STORAGE_KEY);
+      }
+    }
+  }, [searchParams]);
+
+  const handleTourClose = useCallback(() => {
+    setTourOpen(false);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(TOUR_STORAGE_KEY, "true");
+    }
+  }, []);
+
+  const handleTourStepChange = useCallback((nextStep: number) => {
+    if (nextStep === 0) {
+      setImportMode(null);
+    } else if (nextStep >= 1 && nextStep <= TOUR_NOVA_EMPRESA_STEPS.length - 1) {
+      setImportMode("manual");
+      setCurrentStep(nextStep - 1);
+    }
+    setTourStep(nextStep);
+  }, []);
+
+  const tourTriggerButton = (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+            aria-label="Aprenda a cadastrar e editar suas empresas"
+            onClick={() => {
+              setTourOpen(true);
+              setTourStep(importMode === "manual" ? Math.min(1 + currentStep, TOUR_NOVA_EMPRESA_STEPS.length - 1) : 0);
+            }}
+          >
+            <HelpCircle className="h-5 w-5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          Aprenda a cadastrar e editar suas empresas
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
   
   const [formData, setFormData] = useState({
     name: "",
@@ -466,14 +558,13 @@ export default function NovaEmpresaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (currentStep < wizardSteps.length - 1) return;
     if (!formData.name || !formData.csOwner || contacts.length === 0) {
       alert("Preencha os campos obrigatórios: Nome, CS Owner e pelo menos um contato");
       return;
     }
 
     setLoading(true);
-    
     try {
       if (extractedData && contractFile) {
         const submitFormData = new FormData();
@@ -490,22 +581,168 @@ export default function NovaEmpresaPage() {
           router.push("/admin/empresas");
           return;
         }
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || "Erro ao criar empresa a partir do contrato");
+        return;
       }
 
-      setTimeout(() => {
-        setLoading(false);
-        router.push("/admin/empresas");
-      }, 1000);
+      const response = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          cnpj: formData.cnpj || undefined,
+          segment: formData.segment || undefined,
+          framework: formData.framework === "Outro" ? formData.frameworkOther : formData.framework,
+          billedAmount: formData.billedAmount || undefined,
+          cashIn: formData.cashIn || undefined,
+          mrr: formData.mrr || undefined,
+          tags: formData.tags,
+          csOwnerId: formData.csOwner || undefined,
+          squadId: formData.squad || undefined,
+          contractStart: formData.startDate || undefined,
+          contractEnd: formData.expectedCompletion || undefined,
+          fathomLink: formData.fathomLink || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || "Erro ao criar empresa");
+        return;
+      }
+      router.push("/admin/empresas");
     } catch {
+      alert("Erro ao criar empresa");
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCsvImport = async () => {
+    if (!csvFile) return;
+    setCsvImportLoading(true);
+    setCsvImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", csvFile);
+      const response = await fetch("/api/companies/import", { method: "POST", body: formData });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.error || "Erro ao importar");
+        return;
+      }
+      setCsvImportResult({
+        created: data.created ?? 0,
+        skipped: data.skipped ?? 0,
+        errors: data.errors ?? 0,
+        skippedDetails: data.skippedDetails ?? [],
+        errorDetails: data.errorDetails ?? [],
+      });
+    } catch {
+      alert("Erro ao importar empresas");
+    } finally {
+      setCsvImportLoading(false);
+    }
+  };
+
+  const handleCsvDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setCsvDragging(true);
+  }, []);
+
+  const handleCsvDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setCsvDragging(false);
+  }, []);
+
+  const handleCsvDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setCsvDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith(".csv") || file.type === "text/csv")) {
+      setCsvFile(file);
+      setCsvImportResult(null);
+    }
+  }, []);
+
+  const handleCsvFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && (file.name.endsWith(".csv") || file.type === "text/csv")) {
+      setCsvFile(file);
+      setCsvImportResult(null);
+    }
+  };
+
+  const handleQuickGenerateList = () => {
+    const names = quickPasteText
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    setQuickRows(names.map((name) => ({ name, csOwnerId: "" })));
+    setQuickResult(null);
+  };
+
+  const handleQuickApplyCsToAll = (csOwnerId: string) => {
+    setQuickRows((prev) => prev.map((r) => ({ ...r, csOwnerId })));
+  };
+
+  const handleQuickSetCs = (index: number, csOwnerId: string) => {
+    setQuickRows((prev) => prev.map((r, i) => (i === index ? { ...r, csOwnerId } : r)));
+  };
+
+  const handleQuickCreate = async () => {
+    const toCreate = quickRows.filter((r) => r.name.trim() && r.csOwnerId);
+    if (toCreate.length === 0) {
+      alert("Adicione nomes e selecione o CS Owner em cada linha (ou use \"CS para todos\")");
+      return;
+    }
+    setQuickLoading(true);
+    setQuickResult(null);
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+    try {
+      for (const row of toCreate) {
+        try {
+          const res = await fetch("/api/companies", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: row.name.trim(), csOwnerId: row.csOwnerId }),
+          });
+          if (res.ok) created++;
+          else {
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 409 || (data.error && String(data.error).toLowerCase().includes("já existe"))) skipped++;
+            else errors++;
+          }
+        } catch {
+          errors++;
+        }
+      }
+      setQuickResult({ created, skipped, errors });
+    } finally {
+      setQuickLoading(false);
     }
   };
 
   if (importMode === null) {
     return (
       <div className="flex flex-col h-full">
-        <Header title="Nova Empresa" subtitle="Cadastre uma nova empresa e configure entregas" showFilters={false} />
-
+        <Header
+          title="Nova Empresa"
+          subtitle="Cadastre uma nova empresa e configure entregas"
+          showFilters={false}
+          action={tourTriggerButton}
+        />
+        <GuidedTour
+          steps={TOUR_NOVA_EMPRESA_STEPS}
+          isOpen={tourOpen}
+          onClose={handleTourClose}
+          currentStep={tourStep}
+          onStepChange={handleTourStepChange}
+          onComplete={handleTourClose}
+        />
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-4 mb-8">
@@ -517,12 +754,12 @@ export default function NovaEmpresaPage() {
               <div>
                 <h2 className="text-xl font-bold">Como deseja cadastrar?</h2>
                 <p className="text-sm text-muted-foreground">
-                  Escolha entre importar dados de um contrato ou preencher manualmente
+                  Escolha entre importar dados de um contrato, planilha ou preencher manualmente
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-tour="nova-empresa-modos">
               <Card
                 className={cn(
                   "cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 group",
@@ -554,9 +791,53 @@ export default function NovaEmpresaPage() {
 
               <Card
                 className="cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 group relative overflow-hidden"
-                onClick={() => setImportMode("manual")}
+                onClick={() => setImportMode("csv")}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CardHeader className="relative">
+                  <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <FileSpreadsheet className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                  <CardTitle>Importar em massa (CSV)</CardTitle>
+                  <CardDescription>
+                    Envie um CSV ou planilha com a lista de empresas para cadastrar várias de uma vez.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Upload className="h-4 w-4" />
+                    <span>Upload de CSV</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 group relative overflow-hidden"
+                onClick={() => setImportMode("quick")}
+              >
+                <div className="absolute inset-0 bg-gradient-br from-muted/50 to-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CardHeader className="relative">
+                  <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Zap className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                  <CardTitle>Cadastro rápido</CardTitle>
+                  <CardDescription>
+                    Cole os nomes das empresas (um por linha), escolha o CS Owner e cadastre várias de uma vez.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    <span>Nome + CS Owner</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer transition-all hover:shadow-lg hover:border-primary/50 group relative overflow-hidden"
+                onClick={() => setImportMode("manual")}
+              >
+                <div className="absolute inset-0 bg-gradient-br from-muted/50 to-muted opacity-0 group-hover:opacity-100 transition-opacity" />
                 <CardHeader className="relative">
                   <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
                     <FileText className="h-7 w-7 text-muted-foreground" />
@@ -574,6 +855,291 @@ export default function NovaEmpresaPage() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (importMode === "quick") {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Nova Empresa" subtitle="Cadastro rápido: nome e CS Owner" showFilters={false} />
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center gap-4 mb-6">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-xl"
+                onClick={() => { setImportMode(null); setQuickPasteText(""); setQuickRows([]); setQuickResult(null); }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h2 className="text-xl font-bold">Cadastro rápido</h2>
+                <p className="text-sm text-muted-foreground">
+                  Cole os nomes das empresas (um por linha), gere a lista e selecione o CS Owner em cada linha ou use &quot;CS para todos&quot;.
+                </p>
+              </div>
+            </div>
+
+            {quickResult ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resultado</CardTitle>
+                  <CardDescription>
+                    {quickResult.created} criadas, {quickResult.skipped} ignoradas (já existem ou erro), {quickResult.errors} erros
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Link href="/admin/empresas">
+                    <Button variant="outline">Voltar para lista</Button>
+                  </Link>
+                  <Button variant="outline" onClick={() => { setQuickResult(null); setQuickRows([]); setQuickPasteText(""); }}>
+                    Cadastrar mais
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Nomes das empresas (um por linha)</label>
+                    <textarea
+                      value={quickPasteText}
+                      onChange={(e) => setQuickPasteText(e.target.value)}
+                      placeholder="Empresa A
+Empresa B
+Empresa C"
+                      rows={5}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y"
+                    />
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={handleQuickGenerateList}>
+                      Gerar lista
+                    </Button>
+                  </div>
+
+                  {quickRows.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">CS para todos:</span>
+                        <select
+                          className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                          value=""
+                          onChange={(e) => { const v = e.target.value; if (v) handleQuickApplyCsToAll(v); }}
+                        >
+                          <option value="">Selecione...</option>
+                          {csOwners.map((cs) => (
+                            <option key={cs.id} value={cs.id}>{cs.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="text-left p-3 font-medium">Nome</th>
+                              <th className="text-left p-3 font-medium">CS Owner</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {quickRows.map((row, i) => (
+                              <tr key={i} className="border-b last:border-0">
+                                <td className="p-3">{row.name}</td>
+                                <td className="p-2">
+                                  <select
+                                    className="w-full rounded border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                                    value={row.csOwnerId}
+                                    onChange={(e) => handleQuickSetCs(i, e.target.value)}
+                                  >
+                                    <option value="">Selecione...</option>
+                                    {csOwners.map((cs) => (
+                                      <option key={cs.id} value={cs.id}>{cs.name}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          type="button"
+                          onClick={handleQuickCreate}
+                          disabled={quickLoading}
+                          className="gap-2 bg-gradient-brand hover:brightness-110"
+                        >
+                          {quickLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Cadastrando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4" />
+                              Cadastrar {quickRows.filter((r) => r.csOwnerId).length} empresas
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (importMode === "csv") {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Nova Empresa" subtitle="Importar empresas em massa via CSV" showFilters={false} />
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-4 mb-8">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => { setImportMode(null); setCsvFile(null); setCsvImportResult(null); }}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h2 className="text-xl font-bold">Importar em massa</h2>
+                <p className="text-sm text-muted-foreground">
+                  Envie um CSV com as colunas: Clientes, CS Care, Tech Responsável, Início do Projeto, Final do Projeto, Framework, Status do Projeto, Link do NotebookLM, Link do ClickUP, Observações
+                </p>
+              </div>
+            </div>
+
+            {csvImportResult ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resultado da importação</CardTitle>
+                  <CardDescription>
+                    {csvImportResult.created} criadas, {csvImportResult.skipped} ignoradas (já existem), {csvImportResult.errors} erros
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {csvImportResult.errorDetails.length > 0 && (
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                      <p className="text-sm font-medium text-destructive">Erros</p>
+                      <ul className="text-sm text-muted-foreground space-y-1 max-h-40 overflow-auto">
+                        {csvImportResult.errorDetails.map((e, i) => (
+                          <li key={i}>Linha {e.row} ({e.name}): {e.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {csvImportResult.skippedDetails.length > 0 && (
+                    <div className="rounded-lg border border-muted p-3 space-y-2">
+                      <p className="text-sm font-medium">Ignoradas (já existem)</p>
+                      <ul className="text-sm text-muted-foreground space-y-1 max-h-40 overflow-auto">
+                        {csvImportResult.skippedDetails.map((s, i) => (
+                          <li key={i}>Linha {s.row}: {s.name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex gap-3 pt-2">
+                    <Link href="/admin/empresas">
+                      <Button variant="outline">Voltar para lista</Button>
+                    </Link>
+                    <Button variant="outline" onClick={() => { setCsvFile(null); setCsvImportResult(null); }}>
+                      Importar mais
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-8">
+                  <div
+                    className={cn(
+                      "border-2 border-dashed rounded-2xl p-12 text-center transition-all",
+                      csvDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+                      csvFile ? "border-success bg-success/5" : ""
+                    )}
+                    onDragOver={handleCsvDragOver}
+                    onDragLeave={handleCsvDragLeave}
+                    onDrop={handleCsvDrop}
+                  >
+                    {csvFile ? (
+                      <div className="space-y-4">
+                        <div className="h-16 w-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto">
+                          <CheckCircle2 className="h-8 w-8 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{csvFile.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {(csvFile.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setCsvFile(null); }}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Remover
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+                          <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Arraste o CSV aqui</p>
+                          <p className="text-sm text-muted-foreground">ou clique para selecionar</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".csv,text/csv"
+                          onChange={handleCsvFileSelect}
+                          className="hidden"
+                          id="csv-upload"
+                        />
+                        <label htmlFor="csv-upload">
+                          <Button type="button" variant="outline" asChild>
+                            <span>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Selecionar CSV
+                            </span>
+                          </Button>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => { setImportMode(null); setCsvFile(null); setCsvImportResult(null); }}>
+                      Voltar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleCsvImport}
+                      disabled={!csvFile || csvImportLoading}
+                      className="gap-2 bg-gradient-brand hover:brightness-110"
+                    >
+                      {csvImportLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Importando...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Importar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -725,7 +1291,7 @@ export default function NovaEmpresaPage() {
     switch (currentStep) {
       case 0:
         return (
-          <Card>
+          <Card data-tour="wizard-step-basics">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" />
@@ -935,7 +1501,7 @@ export default function NovaEmpresaPage() {
 
       case 1:
         return (
-          <Card>
+          <Card data-tour="wizard-step-assignment">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -986,7 +1552,7 @@ export default function NovaEmpresaPage() {
 
       case 2:
         return (
-          <Card>
+          <Card data-tour="wizard-step-deliveries">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1121,7 +1687,7 @@ export default function NovaEmpresaPage() {
 
       case 3:
         return (
-          <Card>
+          <Card data-tour="wizard-step-workshops">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1246,7 +1812,7 @@ export default function NovaEmpresaPage() {
 
       case 4:
         return (
-          <Card>
+          <Card data-tour="wizard-step-hotseats">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1371,7 +1937,7 @@ export default function NovaEmpresaPage() {
 
       case 5:
         return (
-          <Card>
+          <Card data-tour="wizard-step-contacts">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1490,7 +2056,7 @@ export default function NovaEmpresaPage() {
 
       case 6:
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-tour="wizard-step-documents">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -1646,10 +2212,28 @@ export default function NovaEmpresaPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Nova Empresa" subtitle="Cadastre uma nova empresa e configure entregas" showFilters={false} />
-
+      <Header
+        title="Nova Empresa"
+        subtitle="Cadastre uma nova empresa e configure entregas"
+        showFilters={false}
+        action={tourTriggerButton}
+      />
+      <GuidedTour
+        steps={TOUR_NOVA_EMPRESA_STEPS}
+        isOpen={tourOpen}
+        onClose={handleTourClose}
+        currentStep={tourStep}
+        onStepChange={handleTourStepChange}
+        onComplete={handleTourClose}
+      />
       <div className="flex-1 overflow-auto p-6">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && currentStep < wizardSteps.length - 1) e.preventDefault();
+          }}
+          className="max-w-4xl mx-auto space-y-6"
+        >
           <div className="flex items-center gap-4 mb-6">
             <Button
               type="button"

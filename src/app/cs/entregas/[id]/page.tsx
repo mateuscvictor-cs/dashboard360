@@ -22,12 +22,22 @@ import {
   User,
   Mail,
   Link as LinkIcon,
+  Send,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { DeliveryMeetingForm } from "@/components/delivery/delivery-meeting-form";
@@ -150,9 +160,12 @@ const documentTypeConfig: Record<string, { label: string; icon: typeof FileText 
   SPREADSHEET: { label: "Planilha", icon: FileText },
   PDF: { label: "PDF", icon: FileText },
   VIDEO: { label: "Vídeo", icon: Video },
+  IMAGE: { label: "Imagem", icon: FileText },
   LINK: { label: "Link", icon: LinkIcon },
   OTHER: { label: "Outro", icon: FileText },
 };
+
+const PROOF_TYPES = ["PRESENTATION", "SPREADSHEET", "PDF", "VIDEO", "IMAGE", "LINK", "OTHER"] as const;
 
 export default function CSDeliveryDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -163,6 +176,10 @@ export default function CSDeliveryDetailsPage({ params }: { params: Promise<{ id
   const [showMeetingForm, setShowMeetingForm] = useState(false);
   const [showDocumentForm, setShowDocumentForm] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [completeFeedback, setCompleteFeedback] = useState("");
+  const [completeFathomLink, setCompleteFathomLink] = useState("");
+  const [completeProofs, setCompleteProofs] = useState<{ title: string; url: string; type: string }[]>([{ title: ""; url: ""; type: "OTHER" }]);
 
   useEffect(() => {
     fetchDelivery();
@@ -227,6 +244,76 @@ export default function CSDeliveryDetailsPage({ params }: { params: Promise<{ id
       }
     } catch (error) {
       console.error("Erro ao excluir documento:", error);
+    }
+  };
+
+  const addProofRow = () => {
+    setCompleteProofs((prev) => [...prev, { title: "", url: "", type: "OTHER" }]);
+  };
+
+  const updateProof = (index: number, field: "title" | "url" | "type", value: string) => {
+    setCompleteProofs((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const removeProof = (index: number) => {
+    setCompleteProofs((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  };
+
+  const handleCompleteDelivery = async () => {
+    const feedback = completeFeedback.trim();
+    if (feedback.length < 50) {
+      alert("O feedback é obrigatório e deve ter no mínimo 50 caracteres.");
+      return;
+    }
+    const fathomLink = completeFathomLink.trim();
+    if (!fathomLink) {
+      alert("O link do Fathom é obrigatório.");
+      return;
+    }
+    const proofs = completeProofs.filter((p) => p.url.trim());
+    if (proofs.length === 0) {
+      alert("É obrigatório anexar ao menos uma prova (com URL).");
+      return;
+    }
+    for (const p of proofs) {
+      if (!p.url.trim()) {
+        alert("Cada prova deve ter URL preenchida.");
+        return;
+      }
+    }
+    setCompleting(true);
+    try {
+      const response = await fetch(`/api/deliveries/${id}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feedback,
+          fathomLink,
+          proofDocuments: proofs.map((p) => ({
+            title: p.title.trim() || "Prova",
+            url: p.url.trim(),
+            type: p.type,
+          })),
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setCompleteFeedback("");
+        setCompleteFathomLink("");
+        setCompleteProofs([{ title: "", url: "", type: "OTHER" }]);
+        fetchDelivery();
+      } else {
+        alert(data.error || "Erro ao concluir entrega.");
+      }
+    } catch (error) {
+      console.error("Erro ao concluir entrega:", error);
+      alert("Erro ao concluir entrega.");
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -367,6 +454,100 @@ export default function CSDeliveryDetailsPage({ params }: { params: Promise<{ id
                 </CardContent>
               </Card>
             </div>
+
+            {!delivery.completion && (
+              <Card className="border-primary/30">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    Concluir entrega
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Preencha o feedback, o link do Fathom e anexe ao menos uma prova. Após enviar, a entrega irá para aprovação do admin e depois do cliente.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Feedback (mín. 50 caracteres)</Label>
+                    <textarea
+                      className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={completeFeedback}
+                      onChange={(e) => setCompleteFeedback(e.target.value)}
+                      placeholder="Descreva o que foi entregue e o resultado..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Link do Fathom (gravação)</Label>
+                    <Input
+                      type="url"
+                      value={completeFathomLink}
+                      onChange={(e) => setCompleteFathomLink(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Provas (ao menos uma com URL)</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={addProofRow}>
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Adicionar prova
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {completeProofs.map((proof, index) => (
+                        <div key={index} className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+                          <div className="flex-1 min-w-[120px] space-y-1">
+                            <span className="text-xs text-muted-foreground">Título</span>
+                            <Input
+                              value={proof.title}
+                              onChange={(e) => updateProof(index, "title", e.target.value)}
+                              placeholder="Ex: Print da tela"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-[200px] space-y-1">
+                            <span className="text-xs text-muted-foreground">URL *</span>
+                            <Input
+                              type="url"
+                              value={proof.url}
+                              onChange={(e) => updateProof(index, "url", e.target.value)}
+                              placeholder="https://..."
+                            />
+                          </div>
+                          <div className="w-[140px] space-y-1">
+                            <span className="text-xs text-muted-foreground">Tipo</span>
+                            <Select value={proof.type} onValueChange={(v) => updateProof(index, "type", v)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PROOF_TYPES.map((t) => (
+                                  <SelectItem key={t} value={t}>
+                                    {documentTypeConfig[t]?.label ?? t}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeProof(index)}
+                            disabled={completeProofs.length === 1}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Button disabled={completing} onClick={handleCompleteDelivery}>
+                    {completing ? "Enviando..." : "Concluir entrega e enviar para aprovação"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {delivery.completion && (
               <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/30 dark:bg-emerald-500/5">

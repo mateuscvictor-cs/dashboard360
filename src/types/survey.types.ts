@@ -58,6 +58,8 @@ export interface CompleteDeliveryInput {
   deliveryId: string
   completedById: string
   feedback: string
+  fathomLink: string
+  proofDocuments?: { title: string; url: string; type: string }[]
 }
 
 export interface HealthScoreBreakdown {

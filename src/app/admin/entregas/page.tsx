@@ -16,6 +16,7 @@ import {
   Plus,
   Filter,
   User,
+  ShieldCheck,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +43,7 @@ type Delivery = {
   assignee: string | null;
   blockers: string[];
   impact: string;
+  adminApprovalStatus: string | null;
   createdAt: string;
   company: {
     id: string;
@@ -86,6 +88,7 @@ export default function AdminEntregasPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [csOwnerFilter, setCSOwnerFilter] = useState<string>("all");
+  const [adminApprovalFilter, setAdminApprovalFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchCSOwners();
@@ -93,7 +96,7 @@ export default function AdminEntregasPage() {
 
   useEffect(() => {
     fetchDeliveries();
-  }, [statusFilter, csOwnerFilter]);
+  }, [statusFilter, csOwnerFilter, adminApprovalFilter]);
 
   const fetchCSOwners = async () => {
     try {
@@ -116,6 +119,9 @@ export default function AdminEntregasPage() {
       }
       if (csOwnerFilter !== "all") {
         params.set("csOwnerId", csOwnerFilter);
+      }
+      if (adminApprovalFilter !== "all") {
+        params.set("adminApprovalStatus", adminApprovalFilter);
       }
       const response = await fetch(`/api/deliveries?${params.toString()}`);
       if (response.ok) {
@@ -151,6 +157,7 @@ export default function AdminEntregasPage() {
     completed: deliveries.filter(d => d.status === "COMPLETED").length,
     blocked: deliveries.filter(d => d.status === "BLOCKED").length,
     delayed: deliveries.filter(d => d.status === "DELAYED").length,
+    pendingAdminApproval: deliveries.filter(d => d.adminApprovalStatus === "PENDING_ADMIN_APPROVAL").length,
   };
 
   return (
@@ -196,6 +203,15 @@ export default function AdminEntregasPage() {
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-orange-500">{stats.delayed}</div>
               <div className="text-xs text-muted-foreground">Atrasadas</div>
+            </CardContent>
+          </Card>
+          <Card className={cn("cursor-pointer transition-all", adminApprovalFilter === "PENDING_ADMIN_APPROVAL" && "ring-2 ring-primary")} onClick={() => setAdminApprovalFilter(adminApprovalFilter === "PENDING_ADMIN_APPROVAL" ? "all" : "PENDING_ADMIN_APPROVAL")}>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-amber-600">{stats.pendingAdminApproval}</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Aguardando aprovação
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -273,7 +289,13 @@ export default function AdminEntregasPage() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                              {delivery.adminApprovalStatus === "PENDING_ADMIN_APPROVAL" && (
+                                <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-500/50">
+                                  <ShieldCheck className="h-3 w-3 mr-1" />
+                                  Aguardando aprovação
+                                </Badge>
+                              )}
                               <Badge variant={status.variant}>{status.label}</Badge>
                               <Badge variant={impact.variant}>{impact.label}</Badge>
                             </div>

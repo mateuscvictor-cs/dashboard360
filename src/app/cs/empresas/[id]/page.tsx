@@ -22,8 +22,15 @@ import {
   FileText,
   Clock,
   CheckCircle2,
+  HelpCircle,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -377,9 +384,32 @@ export default function CSEmpresaDetalhePage() {
 
   const statusConfig = healthStatusConfig[company.healthStatus] || healthStatusConfig.STABLE;
 
+  const tourTriggerButton = (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link href="/cs/tutoriais/empresas">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+              aria-label="Aprenda a editar suas empresas"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Button>
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          Aprenda a editar suas empresas
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
   return (
     <div className="flex flex-col h-full">
-      <Header title={company.name} subtitle={company.segment || "Empresa"} showFilters={false} />
+      <Header title={company.name} subtitle={company.segment || "Empresa"} showFilters={false} action={tourTriggerButton} />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <div className="flex items-center justify-between">

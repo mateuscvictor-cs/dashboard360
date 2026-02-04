@@ -143,3 +143,36 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireRole(["ADMIN"]);
+    const { id } = await params;
+
+    const company = await prisma.company.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!company) {
+      return NextResponse.json(
+        { error: "Empresa não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.company.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+    console.error("Erro ao excluir empresa:", error);
+    return NextResponse.json(
+      { error: "Erro ao excluir empresa" },
+      { status: 500 }
+    );
+  }
+}

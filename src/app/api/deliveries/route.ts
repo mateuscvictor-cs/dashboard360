@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const companyId = searchParams.get("companyId")
     const csOwnerId = searchParams.get("csOwnerId")
+    const adminApprovalStatus = searchParams.get("adminApprovalStatus")
     const limit = searchParams.get("limit")
     const offset = searchParams.get("offset")
 
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
 
     if (companyId) {
       where.companyId = companyId
+    }
+
+    if (adminApprovalStatus) {
+      where.adminApprovalStatus = adminApprovalStatus
     }
 
     const deliveries = await prisma.delivery.findMany({
@@ -113,10 +118,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const validTypes = ["AUTOMATION", "IPC", "OTHER"]
     const delivery = await prisma.delivery.create({
       data: {
         title: body.title,
         description: body.description,
+        type: body.type && validTypes.includes(body.type) ? body.type : undefined,
+        typeOtherSpec: body.typeOtherSpec ?? undefined,
         status: body.status || "PENDING",
         progress: body.progress || 0,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,

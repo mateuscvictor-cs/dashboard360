@@ -11,15 +11,19 @@ interface HeaderProps {
   showFilters?: boolean;
   alertCount?: number;
   backLink?: string;
+  action?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, showFilters = true }: HeaderProps) {
+export function Header({ title, subtitle, showFilters = true, action }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+              {action}
+            </div>
             {subtitle && (
               <p className="text-sm text-muted-foreground">{subtitle}</p>
             )}

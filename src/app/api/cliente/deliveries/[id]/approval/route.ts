@@ -41,9 +41,17 @@ export async function POST(
       )
     }
 
-    if (delivery.status !== "COMPLETED" && delivery.clientApprovalStatus !== "PENDING_APPROVAL") {
+    const deliveryWithAdmin = delivery as { adminApprovalStatus?: string }
+    if (deliveryWithAdmin.adminApprovalStatus !== "APPROVED_BY_ADMIN") {
       return NextResponse.json(
-        { error: "Entrega não está aguardando aprovação" },
+        { error: "Entrega ainda aguardando aprovação do admin" },
+        { status: 400 }
+      )
+    }
+
+    if (delivery.status !== "COMPLETED" || delivery.clientApprovalStatus !== "PENDING_APPROVAL") {
+      return NextResponse.json(
+        { error: "Entrega não está aguardando aprovação do cliente" },
         { status: 400 }
       )
     }
