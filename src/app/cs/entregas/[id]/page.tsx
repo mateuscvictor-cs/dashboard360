@@ -179,7 +179,7 @@ export default function CSDeliveryDetailsPage({ params }: { params: Promise<{ id
   const [completing, setCompleting] = useState(false);
   const [completeFeedback, setCompleteFeedback] = useState("");
   const [completeFathomLink, setCompleteFathomLink] = useState("");
-  const [completeProofs, setCompleteProofs] = useState<{ title: string; url: string; type: string }[]>([{ title: ""; url: ""; type: "OTHER" }]);
+  const [completeProofs, setCompleteProofs] = useState<{ title: string; url: string; type: string }[]>([{ title: "", url: "", type: "OTHER" }]);
 
   useEffect(() => {
     fetchDelivery();
