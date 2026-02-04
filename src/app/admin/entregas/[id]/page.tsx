@@ -487,7 +487,7 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
                             >
                               <FileText className="h-3.5 w-3.5" />
                               {doc.title}
-                              <span className="text-muted-foreground text-xs">({docType})</span>
+                              <span className="text-muted-foreground text-xs">({docType.label})</span>
                               <ExternalLink className="h-3 w-3" />
                             </a>
                           );
