@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -129,7 +129,7 @@ type ImportMode = "manual" | "contract" | "csv" | "quick";
 type CSOwnerOption = { id: string; name: string };
 type SquadOption = { id: string; name: string };
 
-export default function NovaEmpresaPage() {
+function NovaEmpresaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -2328,5 +2328,13 @@ Empresa C"
         </form>
       </div>
     </div>
+  );
+}
+
+export default function NovaEmpresaPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+      <NovaEmpresaContent />
+    </Suspense>
   );
 }
