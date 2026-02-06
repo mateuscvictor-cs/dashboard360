@@ -13,7 +13,6 @@ import {
   Users2,
   Video,
   Clock,
-  Plus,
   AlertTriangle,
   CheckCircle2,
   Edit2,
@@ -21,7 +20,6 @@ import {
   TrendingUp,
   MessageSquare,
   ArrowRight,
-  Send,
   Settings,
   HelpCircle,
 } from "lucide-react";
@@ -32,9 +30,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { TOUR_START_PARAM } from "@/lib/tour-nova-empresa-steps";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -148,13 +145,7 @@ interface OnboardingStep {
 
 interface OnboardingData {
   steps: OnboardingStep[];
-  progress: {
-    total: number;
-    completed: number;
-    inProgress: number;
-    pending: number;
-    percentage: number;
-  };
+  progress: { total: number; completed: number; inProgress: number; pending: number; percentage: number };
 }
 
 const healthStatusConfig: Record<string, { label: string; color: string }> = {
@@ -181,7 +172,7 @@ const timelineTypeConfig: Record<string, { icon: typeof Activity; color: string 
   FEEDBACK: { icon: Activity, color: "bg-cyan-500" },
 };
 
-export default function AccountPage() {
+export default function CSContaPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -201,7 +192,7 @@ export default function AccountPage() {
   useEffect(() => {
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     if (hash.startsWith("#comment-") && tabParam !== "comentarios") {
-      router.replace(`/admin/conta/${id}?tab=comentarios${hash}`, { scroll: false });
+      router.replace(`/cs/conta/${id}?tab=comentarios${hash}`, { scroll: false });
     }
   }, [id, tabParam, router]);
 
@@ -277,7 +268,7 @@ export default function AccountPage() {
             <CardContent className="flex flex-col items-center py-8">
               <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
               <p className="text-center text-muted-foreground mb-4">{error}</p>
-              <Link href="/admin/empresas">
+              <Link href="/cs/empresas">
                 <Button variant="outline">Voltar para Empresas</Button>
               </Link>
             </CardContent>
@@ -290,54 +281,26 @@ export default function AccountPage() {
   const healthStatus = healthStatusConfig[company.healthStatus] || healthStatusConfig.HEALTHY;
 
   const allUpcomingItems = [
-    ...company.deliveries.filter(d => d.dueDate).map(d => ({
-      type: "delivery" as const,
-      title: d.title,
-      date: d.dueDate!,
-      cadence: d.cadence,
-      status: d.status,
-    })),
-    ...company.workshops.map(w => ({
-      type: "workshop" as const,
-      title: w.title,
-      date: w.date,
-      cadence: w.cadence,
-      status: "SCHEDULED",
-    })),
-    ...company.hotseats.map(h => ({
-      type: "hotseat" as const,
-      title: h.title,
-      date: h.date,
-      cadence: h.cadence,
-      status: "SCHEDULED",
-    })),
-    ...company.meetings.map(m => ({
-      type: "meeting" as const,
-      title: m.title,
-      date: m.date,
-      cadence: m.recurrence,
-      status: m.status,
-    })),
-  ].filter(item => new Date(item.date) >= new Date())
-   .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    ...company.deliveries.filter((d) => d.dueDate).map((d) => ({ type: "delivery" as const, title: d.title, date: d.dueDate!, cadence: d.cadence, status: d.status })),
+    ...company.workshops.map((w) => ({ type: "workshop" as const, title: w.title, date: w.date, cadence: w.cadence, status: "SCHEDULED" })),
+    ...company.hotseats.map((h) => ({ type: "hotseat" as const, title: h.title, date: h.date, cadence: h.cadence, status: "SCHEDULED" })),
+    ...company.meetings.map((m) => ({ type: "meeting" as const, title: m.title, date: m.date, cadence: m.recurrence, status: m.status })),
+  ]
+    .filter((item) => new Date(item.date) >= new Date())
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const tourTriggerButton = (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-            aria-label="Aprenda a cadastrar e editar empresas"
-            onClick={() => router.push(`/admin/empresas/nova?${TOUR_START_PARAM}=1`)}
-          >
-            <HelpCircle className="h-5 w-5" />
-          </Button>
+          <Link href="/cs/tutoriais/empresas">
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" aria-label="Aprenda sobre empresas">
+              <HelpCircle className="h-5 w-5" />
+            </Button>
+          </Link>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
-          Aprenda a cadastrar e editar empresas
+          Aprenda sobre empresas
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -350,7 +313,7 @@ export default function AccountPage() {
       <div className="flex-1 overflow-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/admin/empresas">
+            <Link href="/cs/empresas">
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -384,17 +347,14 @@ export default function AccountPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href={`/admin/conta/${company.id}/onboarding`}>
+            <Link href={`/cs/empresas/${company.id}/onboarding`}>
               <Button variant="outline" className="gap-2">
                 <Settings className="h-4 w-4" />
                 Onboarding
               </Button>
             </Link>
-            <SendNPSButton
-              companyId={company.id}
-              companyName={company.name}
-            />
-            <Link href={`/admin/empresas/${company.id}`}>
+            <SendNPSButton companyId={company.id} companyName={company.name} />
+            <Link href={`/cs/empresas/${company.id}`}>
               <Button variant="outline" className="gap-2">
                 <Edit2 className="h-4 w-4" />
                 Editar
@@ -406,7 +366,7 @@ export default function AccountPage() {
         {onboardingData && (
           <OnboardingTimeline
             steps={onboardingData.steps}
-            deliveries={company.deliveries.filter(d => d.status !== "COMPLETED")}
+            deliveries={company.deliveries.filter((d) => d.status !== "COMPLETED")}
             progress={onboardingData.progress}
           />
         )}
@@ -421,7 +381,6 @@ export default function AccountPage() {
               <Progress value={company.healthScore} className="h-2" />
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground mb-1">MRR</div>
@@ -430,16 +389,12 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground mb-1">Entregas Ativas</div>
-              <div className="text-2xl font-bold">
-                {company.deliveries.filter(d => d.status !== "COMPLETED").length}
-              </div>
+              <div className="text-2xl font-bold">{company.deliveries.filter((d) => d.status !== "COMPLETED").length}</div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground mb-1">Próximo Evento</div>
@@ -459,11 +414,7 @@ export default function AccountPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Tabs
-              value={tabParam}
-              onValueChange={(v) => router.replace(`/admin/conta/${id}?tab=${v}`, { scroll: false })}
-              className="w-full"
-            >
+            <Tabs value={tabParam} onValueChange={(v) => router.replace(`/cs/conta/${id}?tab=${v}`, { scroll: false })} className="w-full">
               <TabsList>
                 <TabsTrigger value="timeline">Linha do Tempo</TabsTrigger>
                 <TabsTrigger value="deliveries">Entregas</TabsTrigger>
@@ -495,12 +446,8 @@ export default function AccountPage() {
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium text-sm">{event.title}</p>
-                                {event.description && (
-                                  <p className="text-sm text-muted-foreground">{event.description}</p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {formatDate(event.date)}
-                                </p>
+                                {event.description && <p className="text-sm text-muted-foreground">{event.description}</p>}
+                                <p className="text-xs text-muted-foreground mt-1">{formatDate(event.date)}</p>
                               </div>
                             </div>
                           );
@@ -513,7 +460,7 @@ export default function AccountPage() {
 
               <TabsContent value="deliveries" className="mt-4">
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
+                  <CardHeader>
                     <CardTitle className="text-base">Entregas</CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -527,30 +474,25 @@ export default function AccountPage() {
                         {company.deliveries.map((delivery) => {
                           const dStatus = deliveryStatusConfig[delivery.status] || deliveryStatusConfig.PENDING;
                           const daysUntil = delivery.dueDate ? getDaysUntil(delivery.dueDate) : null;
-                          const nextDate = delivery.dueDate && delivery.cadence
-                            ? calculateNextDate(delivery.dueDate, delivery.cadence)
-                            : null;
-
+                          const nextDate = delivery.dueDate && delivery.cadence ? calculateNextDate(delivery.dueDate, delivery.cadence) : null;
                           return (
                             <div key={delivery.id} className="p-3 rounded-lg border">
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
                                   <p className="font-medium">{delivery.title}</p>
                                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                                    <Badge variant="outline" className={dStatus.color}>
-                                      {dStatus.label}
-                                    </Badge>
+                                    <Badge variant="outline" className={dStatus.color}>{dStatus.label}</Badge>
                                     {delivery.dueDate && (
-                                      <span className={cn(
-                                        "text-xs flex items-center gap-1",
-                                        daysUntil !== null && daysUntil < 0 && "text-destructive",
-                                        daysUntil !== null && daysUntil >= 0 && daysUntil <= 2 && "text-amber-600"
-                                      )}>
+                                      <span
+                                        className={cn(
+                                          "text-xs flex items-center gap-1",
+                                          daysUntil !== null && daysUntil < 0 && "text-destructive",
+                                          daysUntil !== null && daysUntil >= 0 && daysUntil <= 2 && "text-amber-600"
+                                        )}
+                                      >
                                         <Clock className="h-3 w-3" />
                                         {formatDateShort(delivery.dueDate)}
-                                        {daysUntil !== null && (
-                                          <span>({daysUntil < 0 ? `${Math.abs(daysUntil)}d atrasado` : daysUntil === 0 ? "hoje" : `em ${daysUntil}d`})</span>
-                                        )}
+                                        {daysUntil !== null && <span>({daysUntil < 0 ? `${Math.abs(daysUntil)}d atrasado` : daysUntil === 0 ? "hoje" : `em ${daysUntil}d`})</span>}
                                       </span>
                                     )}
                                     {delivery.cadence && (
@@ -572,12 +514,7 @@ export default function AccountPage() {
                                     <p className="text-xs">{delivery.progress}%</p>
                                   </div>
                                   {delivery.status !== "COMPLETED" && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 text-xs text-success hover:text-success hover:bg-success/10"
-                                      onClick={() => setCompletingDelivery(delivery)}
-                                    >
+                                    <Button size="sm" variant="ghost" className="h-8 text-xs text-success hover:text-success hover:bg-success/10" onClick={() => setCompletingDelivery(delivery)}>
                                       <CheckCircle2 className="h-3 w-3 mr-1" />
                                       Concluir
                                     </Button>
@@ -620,21 +557,11 @@ export default function AccountPage() {
                                       <Calendar className="h-3 w-3" />
                                       {formatDateShort(w.date)}
                                     </span>
-                                    {w.cadence && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        {getCadenceLabel(w.cadence)}
-                                      </Badge>
-                                    )}
+                                    {w.cadence && <Badge variant="secondary" className="text-xs">{getCadenceLabel(w.cadence)}</Badge>}
                                   </div>
-                                  {nextDate && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Próximo: {formatDateShort(nextDate)}
-                                    </p>
-                                  )}
+                                  {nextDate && <p className="text-xs text-muted-foreground mt-1">Próximo: {formatDateShort(nextDate)}</p>}
                                 </div>
-                                <Badge variant="outline">
-                                  {w.locationType === "ONLINE" ? "Online" : "Presencial"}
-                                </Badge>
+                                <Badge variant="outline">{w.locationType === "ONLINE" ? "Online" : "Presencial"}</Badge>
                               </div>
                             </div>
                           );
@@ -670,21 +597,11 @@ export default function AccountPage() {
                                       <Calendar className="h-3 w-3" />
                                       {formatDateShort(h.date)}
                                     </span>
-                                    {h.cadence && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        {getCadenceLabel(h.cadence)}
-                                      </Badge>
-                                    )}
+                                    {h.cadence && <Badge variant="secondary" className="text-xs">{getCadenceLabel(h.cadence)}</Badge>}
                                   </div>
-                                  {nextDate && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Próximo: {formatDateShort(nextDate)}
-                                    </p>
-                                  )}
+                                  {nextDate && <p className="text-xs text-muted-foreground mt-1">Próximo: {formatDateShort(nextDate)}</p>}
                                 </div>
-                                <Badge variant="outline">
-                                  {h.locationType === "ONLINE" ? "Online" : "Presencial"}
-                                </Badge>
+                                <Badge variant="outline">{h.locationType === "ONLINE" ? "Online" : "Presencial"}</Badge>
                               </div>
                             </div>
                           );
@@ -718,15 +635,11 @@ export default function AccountPage() {
                       <div className="space-y-3">
                         {company.contacts.map((contact) => (
                           <div key={contact.id} className="flex items-center gap-3 p-3 rounded-lg border">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-sm font-semibold">
-                              {contact.name.substring(0, 2).toUpperCase()}
-                            </div>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-sm font-semibold">{contact.name.substring(0, 2).toUpperCase()}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-medium truncate">{contact.name}</p>
-                                {contact.isDecisionMaker && (
-                                  <Badge variant="default" className="text-xs">Decisor</Badge>
-                                )}
+                                {contact.isDecisionMaker && <Badge variant="default" className="text-xs">Decisor</Badge>}
                               </div>
                               <p className="text-sm text-muted-foreground truncate">{contact.role || "Sem cargo"}</p>
                             </div>
@@ -744,16 +657,8 @@ export default function AccountPage() {
           </div>
 
           <div className="space-y-6">
-            <UpcomingDeliverables
-              companyId={company.id}
-              title="Agenda"
-              maxItems={6}
-              showCompany={false}
-              showFutureOccurrences={true}
-            />
-
+            <UpcomingDeliverables companyId={company.id} title="Agenda" maxItems={6} showCompany={false} showFutureOccurrences={true} />
             <CompanySurveysCard companyId={company.id} />
-
             {company.aiInsights.length > 0 && (
               <Card>
                 <CardHeader>
@@ -763,36 +668,20 @@ export default function AccountPage() {
                   {company.aiInsights.slice(0, 3).map((insight) => (
                     <div key={insight.id} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                       <p className="text-sm">{insight.insight}</p>
-                      {insight.actionSuggested && (
-                        <p className="text-xs text-primary mt-2 font-medium">
-                          → {insight.actionSuggested}
-                        </p>
-                      )}
+                      {insight.actionSuggested && <p className="text-xs text-primary mt-2 font-medium">→ {insight.actionSuggested}</p>}
                     </div>
                   ))}
                 </CardContent>
               </Card>
             )}
-
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Tags</CardTitle>
               </CardHeader>
               <CardContent>
-                {company.tags.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma tag</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {company.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                {company.tags.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma tag</p> : <div className="flex flex-wrap gap-2">{company.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}</div>}
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Informações</CardTitle>
@@ -835,14 +724,7 @@ export default function AccountPage() {
           delivery={completingDelivery}
           onComplete={() => {
             if (completingDelivery && company) {
-              setCompany({
-                ...company,
-                deliveries: company.deliveries.map(d =>
-                  d.id === completingDelivery.id
-                    ? { ...d, status: "COMPLETED", progress: 100 }
-                    : d
-                ),
-              });
+              setCompany({ ...company, deliveries: company.deliveries.map((d) => (d.id === completingDelivery.id ? { ...d, status: "COMPLETED", progress: 100 } : d)) });
             }
             setCompletingDelivery(null);
           }}

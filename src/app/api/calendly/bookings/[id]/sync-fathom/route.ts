@@ -35,9 +35,20 @@ export async function POST(
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
 
+  let fathomUrlOverride: string | undefined;
+  try {
+    const body = await request.json().catch(() => ({}));
+    if (typeof body?.fathomUrl === "string" && body.fathomUrl.trim()) {
+      fathomUrlOverride = body.fathomUrl.trim();
+    }
+  } catch {
+    fathomUrlOverride = undefined;
+  }
+
   const result = await fathomService.syncMeetingWithBooking(
     session.user.id,
-    id
+    id,
+    fathomUrlOverride
   );
 
   if (!result.success) {

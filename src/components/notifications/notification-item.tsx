@@ -39,6 +39,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string }> = {
   LOW_SCORE_ALERT: { icon: AlertTriangle, color: "text-red-500" },
   MANUAL_MESSAGE: { icon: Bell, color: "text-indigo-500" },
   BROADCAST: { icon: Megaphone, color: "text-violet-500" },
+  COMPANY_COMMENT_MENTION: { icon: MessageSquare, color: "text-indigo-500" },
 };
 
 function formatRelativeTime(dateStr: string): string {

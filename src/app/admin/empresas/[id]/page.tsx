@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -30,6 +30,7 @@ import {
   ClipboardList,
   FolderOpen,
   HelpCircle,
+  MessageSquare,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { calculateNextDate, formatDateShort } from "@/lib/utils";
-import { LogoUpload, ResourceManager, DiagnosticManager } from "@/components/company";
+import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments } from "@/components/company";
 import {
   Tooltip,
   TooltipContent,
@@ -183,7 +184,9 @@ interface SquadOption {
 export default function EditarEmpresaPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const tabParam = searchParams.get("tab") || "dados";
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -218,6 +221,25 @@ export default function EditarEmpresaPage() {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (hash.startsWith("#comment-") && tabParam !== "comentarios") {
+      router.replace(`/admin/empresas/${id}?tab=comentarios${hash}`, { scroll: false });
+    }
+  }, [id, tabParam, router]);
+
+  useEffect(() => {
+    if (tabParam !== "comentarios") return;
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (hash) {
+      const idFromHash = hash.slice(1);
+      const el = document.getElementById(idFromHash);
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 400);
+      }
+    }
+  }, [tabParam]);
 
   const fetchData = async () => {
     try {
@@ -550,7 +572,11 @@ export default function EditarEmpresaPage() {
           </Card>
         </div>
 
-        <Tabs defaultValue="dados" className="space-y-6">
+        <Tabs
+          value={tabParam}
+          onValueChange={(v) => router.replace(`/admin/empresas/${id}?tab=${v}`, { scroll: false })}
+          className="space-y-6"
+        >
           <TabsList className="bg-muted/50 p-1">
             <TabsTrigger value="dados" className="gap-2">
               <Building2 className="h-4 w-4" />
@@ -579,6 +605,10 @@ export default function EditarEmpresaPage() {
             <TabsTrigger value="transcricoes" className="gap-2">
               <FileText className="h-4 w-4" />
               Transcrições
+            </TabsTrigger>
+            <TabsTrigger value="comentarios" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Comentários
             </TabsTrigger>
           </TabsList>
 
@@ -979,6 +1009,14 @@ export default function EditarEmpresaPage() {
 
           <TabsContent value="transcricoes">
             <TranscriptionManager companyId={id} csOwnerId={formData.csOwnerId || undefined} />
+          </TabsContent>
+
+          <TabsContent value="comentarios">
+            <Card>
+              <CardContent className="pt-6">
+                <CompanyComments companyId={id} />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

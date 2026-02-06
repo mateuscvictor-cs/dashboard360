@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   Circle,
@@ -197,9 +198,10 @@ export default function CSTarefasPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {demands.map((demand) => (
-                <div
+                <Link
                   key={demand.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border bg-amber-500/5 border-amber-500/20"
+                  href={`/cs/demandas/${demand.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10 transition-colors"
                 >
                   <Clock className="h-5 w-5 text-amber-500 shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -219,7 +221,7 @@ export default function CSTarefasPage() {
                       {new Date(demand.dueDate).toLocaleDateString("pt-BR")}
                     </span>
                   )}
-                </div>
+                </Link>
               ))}
             </CardContent>
           </Card>

@@ -1073,7 +1073,12 @@ function DemandCard({
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <p className={cn("font-semibold", isCompleted && "line-through")}>{demand.title}</p>
+              <Link
+                href={`/admin/demandas/${demand.id}`}
+                className={cn("font-semibold hover:underline", isCompleted && "line-through")}
+              >
+                {demand.title}
+              </Link>
               <Badge
                 variant={
                   isCompleted ? "success" :

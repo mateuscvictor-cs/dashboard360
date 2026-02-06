@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
+import { translateFathomToPortuguese } from "@/services/ai.service";
 
 const FATHOM_BASE_URL = "https://api.fathom.ai/external/v1";
 
@@ -142,11 +143,77 @@ export const fathomService = {
     if (options?.cursor) {
       params.set("cursor", options.cursor);
     }
+    params.set("limit", "100");
 
     const queryString = params.toString();
     const endpoint = queryString ? `/meetings?${queryString}` : "/meetings";
 
     return fathomFetch<FathomMeetingsResponse>(apiKey, endpoint);
+  },
+
+  extractRecordingIdFromUrl(url: string): string | null {
+    try {
+      const u = url.trim();
+      const callsMatch = u.match(/fathom\.video\/calls\/(\d+)/i);
+      if (callsMatch) return callsMatch[1];
+      const recMatch = u.match(/fathom\.video\/recordings\/(\d+)/i);
+      if (recMatch) return recMatch[1];
+      const appCallsMatch = u.match(/app\.fathom\.video\/[^/]+\/calls\/(\d+)/i);
+      if (appCallsMatch) return appCallsMatch[1];
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  async getRecordingByDirectId(
+    apiKey: string,
+    recordingId: string
+  ): Promise<FathomMeeting | null> {
+    try {
+      const [transcriptRes, summaryRes] = await Promise.all([
+        fathomFetch<{ transcript?: FathomMeeting["transcript"] }>(
+          apiKey,
+          `/recordings/${recordingId}/transcript`
+        ),
+        fathomFetch<{ summary?: { markdown_formatted?: string } }>(
+          apiKey,
+          `/recordings/${recordingId}/summary`
+        ),
+      ]);
+
+      const transcript = transcriptRes.transcript;
+      const summary = summaryRes.summary?.markdown_formatted || "";
+
+      return {
+        title: "",
+        recording_id: parseInt(recordingId, 10),
+        url: `https://fathom.video/calls/${recordingId}`,
+        share_url: `https://fathom.video/calls/${recordingId}`,
+        created_at: "",
+        transcript,
+        default_summary: summary
+          ? { template_name: "general", markdown_formatted: summary }
+          : undefined,
+        action_items: [],
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  normalizeFathomUrl(url: string): string {
+    try {
+      let s = url.trim().toLowerCase();
+      const hash = s.indexOf("#");
+      if (hash !== -1) s = s.slice(0, hash);
+      const q = s.indexOf("?");
+      if (q !== -1) s = s.slice(0, q);
+      if (s.endsWith("/")) s = s.slice(0, -1);
+      return s;
+    } catch {
+      return url;
+    }
   },
 
   async getMeetingDetails(
@@ -170,6 +237,43 @@ export const fathomService = {
     }
   },
 
+  async findMeetingByUrl(
+    apiKey: string,
+    fathomUrl: string,
+    options?: { createdAfter?: string; createdBefore?: string }
+  ): Promise<FathomMeeting | null> {
+    const normalizedInput = this.normalizeFathomUrl(fathomUrl);
+    if (!normalizedInput || !normalizedInput.includes("fathom")) return null;
+
+    const createdAfter = options?.createdAfter ?? new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+    const createdBefore = options?.createdBefore ?? new Date().toISOString();
+
+    let cursor: string | null = null;
+    const maxPages = 20;
+
+    for (let page = 0; page < maxPages; page++) {
+      const response = await this.listMeetings(apiKey, {
+        createdAfter,
+        createdBefore,
+        includeTranscript: true,
+        includeSummary: true,
+        includeActionItems: true,
+        cursor: cursor ?? undefined,
+      });
+
+      for (const meeting of response.items) {
+        const u = this.normalizeFathomUrl(meeting.url || "");
+        const s = this.normalizeFathomUrl(meeting.share_url || "");
+        if (u === normalizedInput || s === normalizedInput) return meeting;
+      }
+
+      cursor = response.next_cursor;
+      if (!cursor) break;
+    }
+
+    return null;
+  },
+
   formatTranscript(
     transcript: FathomMeeting["transcript"]
   ): string {
@@ -188,7 +292,8 @@ export const fathomService = {
 
   async syncMeetingWithBooking(
     userId: string,
-    bookingId: string
+    bookingId: string,
+    fathomUrlOverride?: string
   ): Promise<{
     success: boolean;
     message: string;
@@ -196,7 +301,7 @@ export const fathomService = {
       fathomUrl: string;
       transcript: string;
       summary: string;
-      actionItems: FathomMeeting["action_items"];
+      actionItems: Array<{ description: string }>;
     };
   }> {
     const apiKey = await this.getUserApiKey(userId);
@@ -216,7 +321,12 @@ export const fathomService = {
       const meeting = await this.getMeetingDetails(apiKey, booking.fathomRecordingId);
       if (meeting) {
         const formattedTranscript = this.formatTranscript(meeting.transcript);
-        const summary = meeting.default_summary?.markdown_formatted || "";
+        const rawSummary = meeting.default_summary?.markdown_formatted || "";
+        const rawActionItems = meeting.action_items || [];
+        const { summary, actionItems } = await translateFathomToPortuguese(
+          rawSummary,
+          rawActionItems.map((a) => ({ description: a.description }))
+        );
 
         await prisma.calendlyBooking.update({
           where: { id: bookingId },
@@ -224,7 +334,7 @@ export const fathomService = {
             fathomUrl: meeting.share_url || meeting.url,
             transcript: formattedTranscript,
             summary,
-            actionItems: meeting.action_items || [],
+            actionItems,
           },
         });
 
@@ -235,38 +345,55 @@ export const fathomService = {
             fathomUrl: meeting.share_url || meeting.url,
             transcript: formattedTranscript,
             summary,
-            actionItems: meeting.action_items,
+            actionItems,
           },
         };
       }
     }
 
     const startTime = new Date(booking.startTime);
-    const searchStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
-    const searchEnd = new Date(startTime.getTime() + 24 * 60 * 60 * 1000);
-
-    const meetings = await this.listMeetings(apiKey, {
-      createdAfter: searchStart.toISOString(),
-      createdBefore: searchEnd.toISOString(),
-      includeTranscript: true,
-      includeSummary: true,
-      includeActionItems: true,
-    });
-
     let matchedMeeting: FathomMeeting | null = null;
+    const fathomUrlToUse = fathomUrlOverride?.trim() || booking.fathomUrl?.trim();
 
-    for (const meeting of meetings.items) {
-      const inviteeEmails =
-        meeting.calendar_invitees?.map((i) => i.email.toLowerCase()) || [];
+    if (fathomUrlToUse) {
+      const recordingIdFromUrl = this.extractRecordingIdFromUrl(fathomUrlToUse);
+      if (recordingIdFromUrl) {
+        matchedMeeting = await this.getRecordingByDirectId(apiKey, recordingIdFromUrl);
+      }
+      if (!matchedMeeting) {
+        const searchStart = new Date(startTime.getTime() - 60 * 24 * 60 * 60 * 1000);
+        const searchEnd = new Date(Math.min(startTime.getTime() + 24 * 60 * 60 * 1000, Date.now()));
+        matchedMeeting = await this.findMeetingByUrl(apiKey, fathomUrlToUse, {
+          createdAfter: searchStart.toISOString(),
+          createdBefore: searchEnd.toISOString(),
+        });
+      }
+    }
 
-      if (inviteeEmails.includes(booking.attendeeEmail.toLowerCase())) {
-        const meetingTime = meeting.scheduled_start_time || meeting.recording_start_time;
-        if (meetingTime) {
-          const meetingDate = new Date(meetingTime);
-          const timeDiff = Math.abs(meetingDate.getTime() - startTime.getTime());
-          if (timeDiff < 2 * 60 * 60 * 1000) {
-            matchedMeeting = meeting;
-            break;
+    if (!matchedMeeting) {
+      const searchStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
+      const searchEnd = new Date(startTime.getTime() + 24 * 60 * 60 * 1000);
+      const meetings = await this.listMeetings(apiKey, {
+        createdAfter: searchStart.toISOString(),
+        createdBefore: searchEnd.toISOString(),
+        includeTranscript: true,
+        includeSummary: true,
+        includeActionItems: true,
+      });
+
+      for (const meeting of meetings.items) {
+        const inviteeEmails =
+          meeting.calendar_invitees?.map((i) => i.email.toLowerCase()) || [];
+
+        if (inviteeEmails.includes(booking.attendeeEmail.toLowerCase())) {
+          const meetingTime = meeting.scheduled_start_time || meeting.recording_start_time;
+          if (meetingTime) {
+            const meetingDate = new Date(meetingTime);
+            const timeDiff = Math.abs(meetingDate.getTime() - startTime.getTime());
+            if (timeDiff < 2 * 60 * 60 * 1000) {
+              matchedMeeting = meeting;
+              break;
+            }
           }
         }
       }
@@ -280,16 +407,22 @@ export const fathomService = {
     }
 
     const formattedTranscript = this.formatTranscript(matchedMeeting.transcript);
-    const summary = matchedMeeting.default_summary?.markdown_formatted || "";
+    const rawSummary = matchedMeeting.default_summary?.markdown_formatted || "";
+    const rawActionItems = matchedMeeting.action_items || [];
+    const { summary, actionItems } = await translateFathomToPortuguese(
+      rawSummary,
+      rawActionItems.map((a) => ({ description: a.description }))
+    );
+    const resolvedUrl = fathomUrlToUse || matchedMeeting.share_url || matchedMeeting.url;
 
     await prisma.calendlyBooking.update({
       where: { id: bookingId },
       data: {
         fathomRecordingId: matchedMeeting.recording_id.toString(),
-        fathomUrl: matchedMeeting.share_url || matchedMeeting.url,
+        fathomUrl: resolvedUrl,
         transcript: formattedTranscript,
         summary,
-        actionItems: matchedMeeting.action_items || [],
+        actionItems,
       },
     });
 
@@ -297,10 +430,10 @@ export const fathomService = {
       success: true,
       message: "Reunião encontrada e sincronizada",
       data: {
-        fathomUrl: matchedMeeting.share_url || matchedMeeting.url,
+        fathomUrl: resolvedUrl,
         transcript: formattedTranscript,
         summary,
-        actionItems: matchedMeeting.action_items,
+        actionItems,
       },
     };
   },

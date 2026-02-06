@@ -2,6 +2,22 @@ import { prisma } from "@/lib/db";
 import { DemandType, DemandStatus, Priority } from "@prisma/client";
 
 export const demandService = {
+  async getById(id: string) {
+    return prisma.demand.findUnique({
+      where: { id },
+      include: {
+        company: true,
+        assignedTo: { include: { user: { select: { id: true, name: true, email: true, image: true } } } },
+        sourceBooking: true,
+        comments: {
+          include: { author: { select: { id: true, name: true, image: true, role: true } } },
+          orderBy: { createdAt: "desc" },
+        },
+        tasks: { orderBy: { orderIndex: "asc" } },
+      },
+    });
+  },
+
   async getByCSOwner(csOwnerId: string) {
     return prisma.demand.findMany({
       where: { assignedToId: csOwnerId },

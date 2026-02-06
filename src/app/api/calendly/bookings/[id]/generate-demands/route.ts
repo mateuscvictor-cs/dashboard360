@@ -3,9 +3,13 @@ import { requireAuth } from "@/lib/auth-server";
 import prisma from "@/lib/db";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_APIKEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_APIKEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_APIKEY ou OPENAI_API_KEY não configurada nas variáveis de ambiente");
+  }
+  return new OpenAI({ apiKey });
+}
 
 type GeneratedDemand = {
   title: string;
@@ -13,6 +17,7 @@ type GeneratedDemand = {
   priority: "URGENT" | "HIGH" | "MEDIUM" | "LOW";
   type: "SUPPORT" | "ESCALATION" | "REQUEST" | "INTERNAL";
   dueDays?: number;
+  contextExcerpt?: string;
 };
 
 export async function POST(
@@ -51,7 +56,8 @@ export async function POST(
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
 
-  const content = booking.summary || booking.transcript || "";
+  const rawContent = booking.summary || booking.transcript || "";
+  const content = rawContent.slice(0, 15000);
   const actionItems = (booking.actionItems as Array<{ description: string }>) || [];
 
   if (!content && actionItems.length === 0) {
@@ -63,7 +69,8 @@ export async function POST(
 
   let actionItemsText = "";
   if (actionItems.length > 0) {
-    actionItemsText = "\n\nAction Items do Fathom:\n" +
+    actionItemsText =
+      "\n\nPróximas ações identificadas:\n" +
       actionItems.map((item, i) => `${i + 1}. ${item.description}`).join("\n");
   }
 
@@ -78,22 +85,26 @@ Conteúdo:
 ${content}
 ${actionItemsText}
 
-Extraia as demandas/ações identificadas. Para cada item, retorne:
-- title: título curto e objetivo (máx 100 caracteres)
-- description: descrição detalhada da tarefa
+Extraia as demandas/ações identificadas. Para cada item, retorne em PORTUGUÊS BRASILEIRO:
+- title: título curto e objetivo em português (máx 100 caracteres)
+- description: descrição detalhada da tarefa em português
 - priority: URGENT, HIGH, MEDIUM ou LOW
 - type: SUPPORT (suporte técnico), ESCALATION (escalação), REQUEST (solicitação do cliente) ou INTERNAL (tarefa interna)
-- dueDays: número de dias sugerido para prazo (opcional)
+- dueDays: número de dias sugerido para prazo (opcional, número inteiro)
+- contextExcerpt: trecho curto (1-3 frases) da transcrição/resumo que originou esta demanda, para dar contexto ao CS
 
-Retorne APENAS um array JSON válido, sem texto adicional. Se não houver demandas identificáveis, retorne um array vazio [].`;
+Retorne APENAS um objeto JSON no formato: {"demands": [...]}
+Se não houver demandas identificáveis, retorne {"demands": []}`;
 
   try {
+    const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "Você é um assistente especializado em extrair tarefas e próximos passos de reuniões de Customer Success. Responda apenas com JSON válido.",
+          content:
+            "Você é um assistente que extrai tarefas de reuniões de Customer Success. Todas as demandas (title e description) devem estar em português brasileiro. Responda APENAS com JSON válido no formato {\"demands\": [...]}.",
         },
         {
           role: "user",
@@ -109,7 +120,14 @@ Retorne APENAS um array JSON válido, sem texto adicional. Se não houver demand
 
     try {
       const parsed = JSON.parse(responseText);
-      demands = Array.isArray(parsed) ? parsed : (parsed.demands || parsed.items || []);
+      const raw =
+        parsed.demands ?? parsed.items ?? (Array.isArray(parsed) ? parsed : []);
+      demands = Array.isArray(raw)
+        ? raw.filter(
+            (d: unknown) =>
+              d && typeof d === "object" && "title" in d && typeof (d as { title: unknown }).title === "string"
+          )
+        : [];
     } catch {
       return NextResponse.json(
         { error: "Erro ao processar resposta da IA" },
@@ -128,6 +146,19 @@ Retorne APENAS um array JSON válido, sem texto adicional. Se não houver demand
 
     const createdDemands = [];
 
+    const typeMap: Record<string, "SUPPORT" | "ESCALATION" | "REQUEST" | "INTERNAL"> = {
+      SUPPORT: "SUPPORT",
+      ESCALATION: "ESCALATION",
+      REQUEST: "REQUEST",
+      INTERNAL: "INTERNAL",
+    };
+    const priorityMap: Record<string, "URGENT" | "HIGH" | "MEDIUM" | "LOW"> = {
+      URGENT: "URGENT",
+      HIGH: "HIGH",
+      MEDIUM: "MEDIUM",
+      LOW: "LOW",
+    };
+
     for (const demand of demands) {
       let dueDate: Date | null = null;
       if (demand.dueDays && demand.dueDays > 0) {
@@ -135,17 +166,25 @@ Retorne APENAS um array JSON válido, sem texto adicional. Se não houver demand
         dueDate.setDate(dueDate.getDate() + demand.dueDays);
       }
 
+      const type = typeMap[String(demand.type || "REQUEST").toUpperCase()] ?? "REQUEST";
+      const priority = priorityMap[String(demand.priority || "MEDIUM").toUpperCase()] ?? "MEDIUM";
+      const assignedToId = booking.csOwnerId ?? undefined;
+
       const created = await prisma.demand.create({
         data: {
-          title: demand.title.slice(0, 200),
-          description: `${demand.description}\n\n---\nGerado automaticamente da reunião: ${booking.title}\nData: ${new Date(booking.startTime).toLocaleDateString("pt-BR")}`,
-          type: demand.type || "REQUEST",
-          priority: demand.priority || "MEDIUM",
+          title: String(demand.title || "").slice(0, 200),
+          description: `${demand.description || ""}\n\n---\nGerado automaticamente da reunião: ${booking.title}\nData: ${new Date(booking.startTime).toLocaleDateString("pt-BR")}`,
+          type,
+          priority,
           status: "OPEN",
           dueDate,
           createdBy: session.user.id,
-          assignedToId: booking.csOwnerId,
-          companyId: booking.companyId,
+          assignedToId,
+          companyId: booking.companyId ?? undefined,
+          sourceBookingId: booking.id,
+          contextExcerpt: demand.contextExcerpt
+            ? String(demand.contextExcerpt).slice(0, 500)
+            : null,
         },
       });
 
@@ -172,8 +211,11 @@ Retorne APENAS um array JSON válido, sem texto adicional. Se não houver demand
     });
   } catch (error) {
     console.error("[Generate Demands] Error:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao gerar demandas";
+    const isConfigError = message.includes("OPENAI") && message.includes("configurada");
     return NextResponse.json(
-      { error: "Erro ao gerar demandas" },
+      { error: isConfigError ? message : "Erro ao gerar demandas. Verifique os logs." },
       { status: 500 }
     );
   }

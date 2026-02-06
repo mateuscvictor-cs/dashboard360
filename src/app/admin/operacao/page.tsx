@@ -95,6 +95,22 @@ export default function OperacaoPage() {
   const [showNewDemand, setShowNewDemand] = useState(false);
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [showApplyTemplate, setShowApplyTemplate] = useState(false);
+  const [showAITemplate, setShowAITemplate] = useState(false);
+  const [aiTemplatePrompt, setAITemplatePrompt] = useState("");
+  const [aiTemplateCsId, setAITemplateCsId] = useState<string>("");
+  const [aiSuggestions, setAISuggestions] = useState<Array<{
+    title: string;
+    description: string;
+    priority: string;
+    type: string;
+    companyId?: string;
+    companyName?: string;
+    assignedToId: string;
+    dueDays?: number;
+    selected?: boolean;
+  }>>([]);
+  const [aiLoading, setAILoading] = useState(false);
+  const [aiApproving, setAIApproving] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ActivityTemplate | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<ActivityTemplate | null>(null);
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
@@ -413,6 +429,73 @@ export default function OperacaoPage() {
     setShowApplyTemplate(true);
   };
 
+  const handleGenerateAISuggestions = async () => {
+    if (!aiTemplatePrompt.trim()) return;
+    setAILoading(true);
+    setAISuggestions([]);
+    try {
+      const res = await fetch("/api/admin/ai-templates/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: aiTemplatePrompt.trim(),
+          csOwnerId: aiTemplateCsId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao gerar");
+      const list = (data.suggestions ?? []).map((s: { title: string; description: string; priority: string; type: string; companyId?: string; companyName?: string; assignedToId: string; dueDays?: number }) => ({
+        ...s,
+        priority: (s.priority ?? "MEDIUM").toUpperCase(),
+        selected: true,
+      }));
+      setAISuggestions(list);
+    } catch (err) {
+      console.error(err);
+      setAISuggestions([]);
+    } finally {
+      setAILoading(false);
+    }
+  };
+
+  const handleApproveAISuggestions = async () => {
+    const selected = aiSuggestions.filter((s) => s.selected && s.title?.trim() && s.assignedToId);
+    if (selected.length === 0) return;
+    setAIApproving(true);
+    try {
+      const res = await fetch("/api/admin/ai-templates/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: selected.map((s) => ({
+            title: s.title,
+            description: s.description,
+            priority: s.priority,
+            type: "INTERNAL",
+            assignedToId: s.assignedToId,
+            companyId: s.companyId || undefined,
+            dueDays: s.dueDays,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao criar demandas");
+      const csRes = await fetch("/api/cs-owners");
+      if (csRes.ok) {
+        const csData = await csRes.json();
+        setCsOwners(csData);
+      }
+      setShowAITemplate(false);
+      setAITemplatePrompt("");
+      setAITemplateCsId("");
+      setAISuggestions([]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAIApproving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <Header title="Operação" subtitle="Gestão da equipe de CS" showFilters={false} />
@@ -617,10 +700,16 @@ export default function OperacaoPage() {
               </Button>
             )}
             {activeTab === "templates" && (
-              <Button size="sm" className="gap-2" onClick={() => setShowNewTemplate(true)}>
-                <Plus className="h-4 w-4" />
-                Novo Template
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAITemplate(true)}>
+                  <Sparkles className="h-4 w-4" />
+                  Criar por IA
+                </Button>
+                <Button size="sm" className="gap-2" onClick={() => setShowNewTemplate(true)}>
+                  <Plus className="h-4 w-4" />
+                  Novo Template
+                </Button>
+              </div>
             )}
           </div>
 
@@ -1344,6 +1433,189 @@ export default function OperacaoPage() {
               </motion.div>
             </motion.div>
           )}
+
+          {showAITemplate && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              onClick={() => !aiLoading && !aiApproving && setShowAITemplate(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-background rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Criar demandas por IA
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => !aiLoading && !aiApproving && setShowAITemplate(false)}
+                    disabled={aiLoading || aiApproving}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-auto p-4 space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">Prompt</label>
+                    <textarea
+                      value={aiTemplatePrompt}
+                      onChange={(e) => setAITemplatePrompt(e.target.value)}
+                      placeholder="Ex: Preciso que você crie tarefas para a Fernanda Peixoto configurar todos os clientes dela. Analise o que está vazio nas empresas da Fernanda e crie demandas e tarefas, como configurar hot seats, etc."
+                      className="w-full min-h-[100px] rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                      disabled={aiLoading || aiApproving}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">CS alvo</label>
+                    <select
+                      value={aiTemplateCsId}
+                      onChange={(e) => setAITemplateCsId(e.target.value)}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      disabled={aiLoading || aiApproving}
+                    >
+                      <option value="">Todos os CS</option>
+                      {csOwners.map((cs) => (
+                        <option key={cs.id} value={cs.id}>
+                          {cs.name} - {cs.accountsCount} contas
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {aiSuggestions.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium">
+                          Sugestões ({aiSuggestions.filter((s) => s.selected).length} selecionadas)
+                        </label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setAISuggestions((prev) =>
+                              prev.map((s) => ({ ...s, selected: !prev.every((p) => p.selected) }))
+                            )
+                          }
+                        >
+                          {aiSuggestions.every((s) => s.selected) ? "Desmarcar todas" : "Selecionar todas"}
+                        </Button>
+                      </div>
+                      <div className="space-y-2 max-h-[280px] overflow-auto">
+                        {aiSuggestions.map((s, i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              "rounded-lg border p-3 space-y-2",
+                              s.selected ? "border-primary/50 bg-primary/5" : "border-transparent bg-muted/30"
+                            )}
+                          >
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={!!s.selected}
+                                onChange={(e) =>
+                                  setAISuggestions((prev) =>
+                                    prev.map((p, j) => (j === i ? { ...p, selected: e.target.checked } : p))
+                                  )
+                                }
+                                className="mt-1 rounded"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">{s.title}</p>
+                                {s.description && (
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{s.description}</p>
+                                )}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {s.companyName && (
+                                    <Badge variant="secondary" size="sm">
+                                      {s.companyName}
+                                    </Badge>
+                                  )}
+                                  <Badge
+                                    variant={
+                                      s.priority === "URGENT" || s.priority === "HIGH" ? "danger-soft" : "secondary"
+                                    }
+                                    size="sm"
+                                  >
+                                    {s.priority === "URGENT"
+                                      ? "Urgente"
+                                      : s.priority === "HIGH"
+                                        ? "Alta"
+                                        : s.priority === "MEDIUM"
+                                          ? "Média"
+                                          : "Baixa"}
+                                  </Badge>
+                                  {s.dueDays != null && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Prazo: {s.dueDays} dias
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2 p-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => !aiLoading && !aiApproving && setShowAITemplate(false)}
+                    disabled={aiLoading || aiApproving}
+                  >
+                    {aiSuggestions.length > 0 ? "Cancelar" : "Fechar"}
+                  </Button>
+                  {aiSuggestions.length === 0 ? (
+                    <Button
+                      className="gap-2"
+                      onClick={handleGenerateAISuggestions}
+                      disabled={!aiTemplatePrompt.trim() || aiLoading}
+                    >
+                      {aiLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          Gerar sugestões
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      className="gap-2"
+                      onClick={handleApproveAISuggestions}
+                      disabled={aiSuggestions.filter((s) => s.selected).length === 0 || aiApproving}
+                    >
+                      {aiApproving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Criando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          Aprovar e criar demandas ({aiSuggestions.filter((s) => s.selected).length})
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>
@@ -1608,7 +1880,9 @@ function DemandRow({ demand, csOwners }: { demand: Demand; csOwners: DBCSOwner[]
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <p className="font-semibold">{demand.title}</p>
+              <Link href={`/admin/demandas/${demand.id}`} className="font-semibold hover:underline">
+                {demand.title}
+              </Link>
               <Badge
                 variant={demand.priority === "urgent" ? "danger" : demand.priority === "high" ? "warning" : "secondary"}
                 size="sm"
@@ -1635,14 +1909,18 @@ function DemandRow({ demand, csOwners }: { demand: Demand; csOwners: DBCSOwner[]
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button variant="ghost" size="icon" asChild>
+          <Link href={`/admin/demandas/${demand.id}`}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Link>
         </Button>
       </div>
       <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
         {demand.status === "open" && <Button variant="outline" size="sm">Atribuir</Button>}
         {demand.status === "in_progress" && <Button variant="outline" size="sm">Marcar concluída</Button>}
-        <Button variant="ghost" size="sm">Detalhes</Button>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/admin/demandas/${demand.id}`}>Detalhes</Link>
+        </Button>
       </div>
     </motion.div>
   );

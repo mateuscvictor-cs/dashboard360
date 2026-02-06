@@ -5,7 +5,8 @@ import prisma from "@/lib/db";
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
-    if (session.user.role !== "ADMIN") {
+    const userRole = session.user.role;
+    if (userRole !== "ADMIN" && userRole !== "CS_OWNER") {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
@@ -18,10 +19,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
+    const validRoles = ["ADMIN", "CS_OWNER", "CLIENT"] as const;
+    const roleParts = role ? role.split(",").filter((r) => validRoles.includes(r as (typeof validRoles)[number])) : [];
+    const roleWhere =
+      roleParts.length > 1
+        ? { role: { in: roleParts as (typeof validRoles)[number][] } }
+        : roleParts.length === 1
+          ? { role: roleParts[0] as (typeof validRoles)[number] }
+          : {};
+
     const users = await prisma.user.findMany({
       where: {
         AND: [
-          role ? { role: role as "ADMIN" | "CS_OWNER" | "CLIENT" } : {},
+          ...(Object.keys(roleWhere).length ? [roleWhere] : []),
           query
             ? {
                 OR: [

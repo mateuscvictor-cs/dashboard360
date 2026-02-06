@@ -159,7 +159,7 @@ export default function CSEmpresasPage() {
               const StatusIcon = statusConfig.icon;
 
               return (
-                <Link key={company.id} href={`/cs/empresas/${company.id}`}>
+                <Link key={company.id} href={`/cs/conta/${company.id}`}>
                   <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                     <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">

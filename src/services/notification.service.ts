@@ -61,6 +61,15 @@ type CommentWithRelations = DeliveryComment & {
   author: User;
 };
 
+type CompanyCommentWithMentions = {
+  id: string;
+  authorId: string;
+  author?: { name: string | null };
+  mentions: Array<{
+    mentionedUser: { id: string; name: string | null; role: string };
+  }>;
+};
+
 class NotificationService {
   private shouldNotifyByType(type: NotificationType, user: UserWithPreferences): boolean {
     const deliveryTypes: NotificationType[] = [
@@ -391,6 +400,34 @@ class NotificationService {
         recipientId: user.id,
         deliveryId: delivery.id,
         companyId: delivery.companyId,
+      });
+    }
+  }
+
+  async notifyCompanyCommentMention(
+    comment: CompanyCommentWithMentions,
+    companyId: string
+  ): Promise<void> {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    });
+    const companyName = company?.name || "Empresa";
+    const authorName = comment.author?.name || "Alguém";
+    const linkAdmin = `/admin/conta/${companyId}?tab=comentarios#comment-${comment.id}`;
+    const linkCs = `/cs/conta/${companyId}?tab=comentarios#comment-${comment.id}`;
+
+    for (const m of comment.mentions) {
+      const recipient = m.mentionedUser;
+      const link = recipient.role === "ADMIN" ? linkAdmin : linkCs;
+      await this.create({
+        type: "COMPANY_COMMENT_MENTION",
+        title: "Você foi mencionado",
+        message: `${authorName} mencionou você em um comentário em ${companyName}`,
+        link,
+        recipientId: recipient.id,
+        senderId: comment.authorId,
+        companyId,
       });
     }
   }

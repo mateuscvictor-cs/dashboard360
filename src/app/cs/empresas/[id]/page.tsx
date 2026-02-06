@@ -55,7 +55,7 @@ import { cn, formatDateShort, getCadenceLabel, calculateNextDate, getDaysUntil }
 import { UpcomingDeliverables } from "@/components/upcoming-deliverables";
 import { DeliveryCompletionDialog, SendNPSButton } from "@/components/cs";
 import { CompanySurveysCard } from "@/components/company-surveys-card";
-import { LogoUpload, ResourceManager, DiagnosticManager } from "@/components/company";
+import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments } from "@/components/company";
 
 type Contact = {
   id: string;
@@ -181,6 +181,26 @@ export default function CSEmpresaDetalhePage() {
 
   useEffect(() => {
     fetchData();
+  }, [id]);
+
+  useEffect(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (!hash.startsWith("#comment-")) return;
+    const idFromHash = hash.slice(1);
+    const scrollToComment = () => {
+      const el = document.getElementById(idFromHash);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      }
+      return false;
+    };
+    const t = setTimeout(() => {
+      if (!scrollToComment()) {
+        setTimeout(scrollToComment, 500);
+      }
+    }, 600);
+    return () => clearTimeout(t);
   }, [id]);
 
   const fetchData = async () => {
@@ -757,6 +777,12 @@ export default function CSEmpresaDetalhePage() {
         />
 
         <CompanySurveysCard companyId={company.id} />
+
+        <Card>
+          <CardContent className="pt-6">
+            <CompanyComments companyId={company.id} />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

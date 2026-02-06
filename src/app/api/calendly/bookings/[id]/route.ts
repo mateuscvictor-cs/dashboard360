@@ -91,13 +91,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
 
-  const allowedFields = ["notes", "fathomUrl", "fathomRecordingId"];
-  const updateData: Record<string, string> = {};
+  const allowedFields = ["notes", "fathomUrl", "fathomRecordingId", "transcript", "summary"];
+  const updateData: Record<string, string | null> = {};
 
   for (const field of allowedFields) {
-    if (field in body) {
-      updateData[field] = body[field];
-    }
+    if (!(field in body)) continue;
+    const v = body[field];
+    updateData[field] = v === "" || v === null ? null : v;
   }
 
   const updatedBooking = await prisma.calendlyBooking.update({

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { signIn, useSession } from "next-auth/react";
 
 function getRedirectUrl(role: string | undefined): string {
@@ -70,22 +70,16 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5" />
       
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-background/95 backdrop-blur-xl">
-        <CardHeader className="text-center space-y-4 pb-8">
+        <CardHeader className="text-center pb-8">
           <div className="flex justify-center">
             <Image
               src="/logo-vanguardia.png"
               alt="Vanguardia"
-              width={180}
-              height={48}
-              className="h-12 w-auto"
+              width={280}
+              height={72}
+              className="h-16 w-auto"
               priority
             />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">Vanguardia 360</CardTitle>
-            <CardDescription className="text-base mt-2">
-              Painel de Inteligência
-            </CardDescription>
           </div>
         </CardHeader>
 

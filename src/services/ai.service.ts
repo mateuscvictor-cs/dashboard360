@@ -357,3 +357,63 @@ export async function generateMeetingAnalysis(data: {
     return null;
   }
 }
+
+export async function translateFathomToPortuguese(
+  summary: string,
+  actionItems: Array<{ description: string }>
+): Promise<{ summary: string; actionItems: Array<{ description: string }> }> {
+  const apiKey = process.env.OPENAI_APIKEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) return { summary, actionItems };
+  if (!summary.trim() && actionItems.length === 0) return { summary, actionItems };
+
+  try {
+    const openai = new OpenAI({ apiKey });
+    const itemsText =
+      actionItems.length > 0
+        ? "\n\nAction Items (traduza cada descrição):\n" +
+          actionItems.map((a, i) => `${i + 1}. ${a.description}`).join("\n")
+        : "";
+
+    const prompt = `Traduza o resumo e as ações abaixo para português brasileiro. Mantenha a formatação markdown do resumo.
+
+RESUMO:
+${summary || "(vazio)"}
+${itemsText}
+
+Retorne um JSON: {"summary": "resumo traduzido em markdown", "actionItems": [{"description": "descrição 1"}, {"description": "descrição 2"}, ...]}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você traduz conteúdo para português brasileiro. Preserve markdown (##, -, **). Responda APENAS com JSON válido.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) return { summary, actionItems };
+
+    const parsed = JSON.parse(content) as {
+      summary?: string;
+      actionItems?: Array<{ description: string }>;
+    };
+    return {
+      summary: parsed.summary ?? summary,
+      actionItems:
+        Array.isArray(parsed.actionItems) && parsed.actionItems.length > 0
+          ? parsed.actionItems.map((a) => ({
+              description: typeof a.description === "string" ? a.description : String(a.description),
+            }))
+          : actionItems,
+    };
+  } catch (error) {
+    console.error("Erro ao traduzir Fathom para português:", error);
+    return { summary, actionItems };
+  }
+}

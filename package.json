@@ -16,9 +16,13 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "deploy": "vercel --prod",
-    "deploy:account1": "vercel --prod --scope %VERCEL_SCOPE_ACCOUNT1%",
-    "deploy:account2": "vercel --prod --scope %VERCEL_SCOPE_ACCOUNT2%",
-    "deploy:both": "npm run deploy:account1 && npm run deploy:account2"
+    "deploy:personal": "vercel --prod --scope $npm_package_config_scope_personal --yes",
+    "deploy:vanguardia": "vercel --prod --scope $npm_package_config_scope_vanguardia --yes",
+    "deploy:both": "npm run deploy:personal && npm run deploy:vanguardia"
+  },
+  "config": {
+    "scope_personal": "mateus",
+    "scope_vanguardia": "vanguardia"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -55,6 +59,7 @@
     "pg": "^8.17.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^2.15.4",
     "tailwind-merge": "^2.6.0"
   },

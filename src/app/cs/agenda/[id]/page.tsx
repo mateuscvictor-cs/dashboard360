@@ -10,7 +10,6 @@ import {
   User,
   Building2,
   Video,
-  FileText,
   Sparkles,
   RefreshCw,
   Save,
@@ -30,7 +29,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-
+import { MarkdownContent } from "@/components/markdown-content";
 type Booking = {
   id: string;
   title: string;
@@ -90,6 +89,8 @@ export default function BookingDetailsPage({
 
   const [notes, setNotes] = useState("");
   const [fathomUrl, setFathomUrl] = useState("");
+  const [manualTranscript, setManualTranscript] = useState("");
+  const [savingTranscript, setSavingTranscript] = useState(false);
 
   useEffect(() => {
     loadBooking();
@@ -109,6 +110,7 @@ export default function BookingDetailsPage({
       setBooking(data);
       setNotes(data.notes || "");
       setFathomUrl(data.fathomUrl || "");
+      setManualTranscript(data.transcript || "");
     } catch {
       setError("Erro ao carregar detalhes");
     } finally {
@@ -149,6 +151,8 @@ export default function BookingDetailsPage({
     try {
       const res = await fetch(`/api/calendly/bookings/${id}/sync-fathom`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fathomUrl: fathomUrl.trim() || undefined }),
       });
 
       const data = await res.json();
@@ -160,12 +164,38 @@ export default function BookingDetailsPage({
 
       setBooking(data.booking);
       setFathomUrl(data.booking.fathomUrl || "");
+      setManualTranscript(data.booking.transcript || "");
       setSuccess("Sincronizado com sucesso!");
       setTimeout(() => setSuccess(""), 3000);
     } catch {
       setError("Erro ao sincronizar com Fathom");
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleSaveTranscript = async () => {
+    setSavingTranscript(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`/api/calendly/bookings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: manualTranscript || null }),
+      });
+
+      if (!res.ok) throw new Error("Erro ao salvar");
+
+      const data = await res.json();
+      setBooking(data);
+      setSuccess("Transcrição salva!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch {
+      setError("Erro ao salvar transcrição");
+    } finally {
+      setSavingTranscript(false);
     }
   };
 
@@ -186,8 +216,12 @@ export default function BookingDetailsPage({
         return;
       }
 
-      setSuccess(data.message);
-      setTimeout(() => setSuccess(""), 5000);
+      setSuccess(
+        data.created > 0
+          ? `${data.message} As demandas estão em Minhas Tarefas.`
+          : data.message
+      );
+      setTimeout(() => setSuccess(""), 6000);
     } catch {
       setError("Erro ao gerar demandas");
     } finally {
@@ -346,7 +380,7 @@ export default function BookingDetailsPage({
                   <Input
                     value={fathomUrl}
                     onChange={(e) => setFathomUrl(e.target.value)}
-                    placeholder="https://fathom.video/..."
+                    placeholder="https://fathom.video/... ou https://fathom.video/share/..."
                   />
                   {fathomUrl && (
                     <Button variant="outline" size="icon" asChild>
@@ -360,29 +394,45 @@ export default function BookingDetailsPage({
                     </Button>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Salve o link e clique em Sincronizar para puxar a transcrição (painel ou link compartilhado).
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Adicionar transcrição manual</label>
+                <Textarea
+                  className="mt-1"
+                  placeholder="Cole aqui a transcrição se a sincronização não encontrar a reunião..."
+                  value={manualTranscript}
+                  onChange={(e) => setManualTranscript(e.target.value)}
+                  rows={4}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={handleSaveTranscript}
+                  disabled={savingTranscript}
+                >
+                  {savingTranscript ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Salvar transcrição
+                </Button>
               </div>
 
               {booking.summary && (
-                <div>
-                  <label className="text-sm font-medium">Resumo</label>
-                  <div className="mt-1 p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap">
-                    {booking.summary}
-                  </div>
-                </div>
-              )}
-
-              {booking.transcript && (
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="transcript">
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Transcrição
-                      </div>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="resumo" className="border-none">
+                    <AccordionTrigger className="py-2 hover:no-underline">
+                      <span className="text-sm font-medium">Resumo</span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
-                        {booking.transcript}
+                      <div className="p-3 bg-muted rounded-lg text-sm">
+                        <MarkdownContent content={booking.summary} />
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -390,28 +440,36 @@ export default function BookingDetailsPage({
               )}
 
               {booking.actionItems && booking.actionItems.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">
-                    Action Items ({booking.actionItems.length})
-                  </label>
-                  <ul className="mt-2 space-y-2">
-                    {booking.actionItems.map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 p-2 bg-muted rounded-lg text-sm"
-                      >
-                        <CheckCircle2
-                          className={`h-4 w-4 mt-0.5 ${
-                            item.completed
-                              ? "text-green-500"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                        <span>{item.description}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="action-items" className="border-none">
+                    <AccordionTrigger className="py-2 hover:no-underline">
+                      <span className="text-sm font-medium">
+                        Próximas ações ({booking.actionItems.length})
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="mt-2 space-y-2">
+                        {booking.actionItems.map((item, i) => (
+                          <li
+                            key={i}
+                            className="flex items-start gap-2 p-2 bg-muted rounded-lg text-sm"
+                          >
+                            <CheckCircle2
+                              className={`h-4 w-4 mt-0.5 shrink-0 ${
+                                item.completed
+                                  ? "text-green-500"
+                                  : "text-muted-foreground"
+                              }`}
+                            />
+                            <div className="min-w-0 flex-1 [&_.prose]:text-inherit [&_p]:my-0 [&_p]:inline">
+                              <MarkdownContent content={item.description} />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               )}
             </CardContent>
           </Card>

@@ -279,6 +279,7 @@ enum NotificationType {
   BROADCAST
   DIAGNOSTIC_PENDING
   DIAGNOSTIC_COMPLETED
+  COMPANY_COMMENT_MENTION
 }
 
 model User {
@@ -315,6 +316,9 @@ model User {
   approvedDeliveries    Delivery[]        @relation("DeliveryApprovedBy")
   adminApprovedDeliveries Delivery[]      @relation("DeliveryAdminApprovedBy")
   deliveryComments      DeliveryComment[]
+  companyComments       CompanyComment[]
+  demandComments        DemandComment[]
+  companyCommentMentions CompanyCommentMention[]  @relation("MentionedUser")
   receivedNotifications Notification[]    @relation("NotificationRecipient")
   sentNotifications     Notification[]    @relation("NotificationSender")
   sentDiagnostics       DiagnosticForm[]  @relation("SentDiagnostics")
@@ -498,8 +502,41 @@ model Company {
   onboardingSteps  OnboardingStep[]
   diagnosticForms  DiagnosticForm[]
   meetingRecords   MeetingRecord[]
+  companyComments  CompanyComment[]
 
   @@map("companies")
+}
+
+model CompanyComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  mentions CompanyCommentMention[]
+
+  @@index([companyId])
+  @@map("company_comments")
+}
+
+model CompanyCommentMention {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  comment   CompanyComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+
+  mentionedUser   User   @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  mentionedUserId String
+
+  @@unique([commentId, mentionedUserId])
+  @@index([mentionedUserId])
+  @@map("company_comment_mentions")
 }
 
 enum EventLocationType {
@@ -721,6 +758,8 @@ model Demand {
   createdBy   String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  contextExcerpt String?   @db.Text
+  sourceBookingId String?
 
   assignedTo   CSOwner? @relation(fields: [assignedToId], references: [id])
   assignedToId String?
@@ -728,7 +767,43 @@ model Demand {
   company   Company? @relation(fields: [companyId], references: [id])
   companyId String?
 
+  sourceBooking   CalendlyBooking? @relation(fields: [sourceBookingId], references: [id])
+  comments        DemandComment[]
+  tasks           DemandTask[]
+
   @@map("demands")
+}
+
+model DemandComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  demand   Demand @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  demandId String
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  @@index([demandId])
+  @@map("demand_comments")
+}
+
+model DemandTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  priority    Priority @default(MEDIUM)
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  demand   Demand @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  demandId String
+
+  @@index([demandId])
+  @@map("demand_tasks")
 }
 
 model ChecklistItem {
@@ -1211,6 +1286,8 @@ model CalendlyBooking {
   actionItems        Json?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
+
+  demands Demand[]
 
   @@map("calendly_bookings")
 }

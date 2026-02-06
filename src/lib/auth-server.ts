@@ -25,6 +25,28 @@ export async function requireRole(allowedRoles: string[]) {
   return session;
 }
 
+export async function requireDemandAccess(demandId: string) {
+  const session = await requireRole(["ADMIN", "CS_OWNER"]);
+  const user = session.user as { role?: string; id?: string };
+  const demand = await prisma.demand.findUnique({
+    where: { id: demandId },
+    select: { id: true, assignedToId: true },
+  });
+  if (!demand) {
+    throw new Error("DemandNotFound");
+  }
+  if (user.role === "CS_OWNER") {
+    const csOwner = await prisma.cSOwner.findFirst({
+      where: { user: { id: user.id } },
+      select: { id: true },
+    });
+    if (!csOwner || demand.assignedToId !== csOwner.id) {
+      throw new Error("Forbidden");
+    }
+  }
+  return session;
+}
+
 export async function requireCompanyAccess(companyId: string) {
   const session = await requireRole(["ADMIN", "CS_OWNER"]);
   const user = session.user as { role?: string; csOwnerId?: string };
