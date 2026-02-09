@@ -59,6 +59,7 @@ import { TranscriptionManager } from "./transcription-manager";
 type CadenceType = "daily" | "weekly" | "biweekly" | "monthly" | "custom" | "";
 
 interface Delivery {
+  id?: string;
   title: string;
   description: string;
   dueDate: string;
@@ -68,6 +69,7 @@ interface Delivery {
 }
 
 interface Contact {
+  id?: string;
   name: string;
   role: string;
   email: string;
@@ -76,6 +78,7 @@ interface Contact {
 }
 
 interface Workshop {
+  id?: string;
   title: string;
   description: string;
   scheduledDate: string;
@@ -85,6 +88,7 @@ interface Workshop {
 }
 
 interface Hotseat {
+  id?: string;
   title: string;
   description: string;
   scheduledDate: string;
@@ -273,6 +277,7 @@ export default function EditarEmpresaPage() {
 
         setDeliveries(
           data.deliveries.map((d) => ({
+            id: d.id,
             title: d.title,
             description: "",
             dueDate: d.dueDate?.split("T")[0] || "",
@@ -284,6 +289,7 @@ export default function EditarEmpresaPage() {
 
         setWorkshops(
           data.workshops.map((w) => ({
+            id: w.id,
             title: w.title,
             description: w.description || "",
             scheduledDate: w.date?.split("T")[0] || "",
@@ -295,6 +301,7 @@ export default function EditarEmpresaPage() {
 
         setHotseats(
           data.hotseats.map((h) => ({
+            id: h.id,
             title: h.title,
             description: h.description || "",
             scheduledDate: h.date?.split("T")[0] || "",
@@ -306,6 +313,7 @@ export default function EditarEmpresaPage() {
 
         setContacts(
           data.contacts.map((c) => ({
+            id: c.id,
             name: c.name,
             role: c.role || "",
             email: c.email,
@@ -397,6 +405,142 @@ export default function EditarEmpresaPage() {
       });
 
       if (!companyResponse.ok) throw new Error("Erro ao atualizar empresa");
+
+      const existingDeliveryIds = new Set((company?.deliveries ?? []).map((d) => d.id));
+      const currentDeliveryIds = new Set(deliveries.filter((d) => d.id).map((d) => d.id!));
+      const toDeleteDeliveryIds = [...existingDeliveryIds].filter((id) => !currentDeliveryIds.has(id));
+      for (const deliveryId of toDeleteDeliveryIds) {
+        const res = await fetch(`/api/deliveries/${deliveryId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Erro ao remover entrega");
+      }
+      for (const d of deliveries) {
+        const impact = (d.impact?.toUpperCase() || "MEDIUM") as string;
+        const cadence = d.cadence ? (d.cadence.toUpperCase() as string) : null;
+        if (d.id && existingDeliveryIds.has(d.id)) {
+          const res = await fetch(`/api/deliveries/${d.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: d.title,
+              dueDate: d.dueDate || null,
+              assignee: d.assignee || null,
+              impact,
+              cadence,
+            }),
+          });
+          if (!res.ok) throw new Error("Erro ao atualizar entrega");
+        } else if (!d.id && d.title.trim()) {
+          const res = await fetch(`/api/companies/${id}/deliveries`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: d.title.trim(),
+              status: "PENDING",
+              dueDate: d.dueDate || null,
+              assignee: d.assignee || null,
+              impact,
+              cadence,
+            }),
+          });
+          if (!res.ok) throw new Error("Erro ao criar entrega");
+        }
+      }
+
+      const contactsRes = await fetch(`/api/companies/${id}/contacts`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contacts: contacts.map((c) => ({
+            id: c.id,
+            name: c.name,
+            role: c.role || undefined,
+            email: c.email,
+            phone: c.phone || undefined,
+            isDecisionMaker: c.isDecisionMaker,
+          })),
+        }),
+      });
+      if (!contactsRes.ok) throw new Error("Erro ao salvar contatos");
+
+      const existingWorkshopIds = new Set((company?.workshops ?? []).map((w) => w.id));
+      const currentWorkshopIds = new Set(workshops.filter((w) => w.id).map((w) => w.id!));
+      const toDeleteWorkshopIds = [...existingWorkshopIds].filter((wid) => !currentWorkshopIds.has(wid));
+      for (const workshopId of toDeleteWorkshopIds) {
+        const res = await fetch(`/api/companies/${id}/workshops/${workshopId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Erro ao remover workshop");
+      }
+      for (const w of workshops) {
+        const cadence = w.cadence ? (w.cadence.toUpperCase() as string) : null;
+        if (w.id && existingWorkshopIds.has(w.id)) {
+          const res = await fetch(`/api/companies/${id}/workshops/${w.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: w.title,
+              description: w.description || null,
+              date: w.scheduledDate || new Date().toISOString().split("T")[0],
+              duration: w.duration ? parseInt(w.duration, 10) : null,
+              participants: w.participants ? parseInt(w.participants, 10) : 0,
+              cadence,
+            }),
+          });
+          if (!res.ok) throw new Error("Erro ao atualizar workshop");
+        } else if (!w.id && w.title.trim() && w.scheduledDate) {
+          const res = await fetch(`/api/companies/${id}/workshops`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: w.title.trim(),
+              description: w.description || null,
+              date: w.scheduledDate,
+              duration: w.duration ? parseInt(w.duration, 10) : null,
+              participants: w.participants ? parseInt(w.participants, 10) : 0,
+              cadence,
+            }),
+          });
+          if (!res.ok) throw new Error("Erro ao criar workshop");
+        }
+      }
+
+      const existingHotseatIds = new Set((company?.hotseats ?? []).map((h) => h.id));
+      const currentHotseatIds = new Set(hotseats.filter((h) => h.id).map((h) => h.id!));
+      const toDeleteHotseatIds = [...existingHotseatIds].filter((hid) => !currentHotseatIds.has(hid));
+      for (const hotseatId of toDeleteHotseatIds) {
+        const res = await fetch(`/api/companies/${id}/hotseats/${hotseatId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Erro ao remover hotseat");
+      }
+      for (const h of hotseats) {
+        const cadence = h.cadence ? (h.cadence.toUpperCase() as string) : null;
+        if (h.id && existingHotseatIds.has(h.id)) {
+          const res = await fetch(`/api/companies/${id}/hotseats/${h.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: h.title,
+              description: h.description || null,
+              date: h.scheduledDate || new Date().toISOString().split("T")[0],
+              duration: h.duration ? parseInt(h.duration, 10) : null,
+              participants: h.participants ? parseInt(h.participants, 10) : 0,
+              cadence,
+            }),
+          });
+          if (!res.ok) throw new Error("Erro ao atualizar hotseat");
+        } else if (!h.id && h.title.trim() && h.scheduledDate) {
+          const res = await fetch(`/api/companies/${id}/hotseats`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: h.title.trim(),
+              description: h.description || null,
+              date: h.scheduledDate,
+              duration: h.duration ? parseInt(h.duration, 10) : null,
+              participants: h.participants ? parseInt(h.participants, 10) : 0,
+              cadence,
+            }),
+          });
+          if (!res.ok) throw new Error("Erro ao criar hotseat");
+        }
+      }
 
       router.push("/admin/empresas");
     } catch (error) {

@@ -193,12 +193,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(["ADMIN"])
-    
+    const session = await requireRole(["ADMIN", "CS_OWNER"])
+    const user = session?.user as { role?: string; csOwnerId?: string } | undefined
     const { id } = await params
 
     const existing = await prisma.delivery.findUnique({
       where: { id },
+      include: { company: { select: { csOwnerId: true } } },
     })
 
     if (!existing) {
@@ -206,6 +207,10 @@ export async function DELETE(
         { error: "Entrega não encontrada" },
         { status: 404 }
       )
+    }
+
+    if (user?.role === "CS_OWNER" && existing.company.csOwnerId !== user.csOwnerId) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 })
     }
 
     await prisma.delivery.delete({
