@@ -138,6 +138,7 @@ export async function GET() {
         name: c.name,
         role: c.role,
         email: c.email,
+        phone: c.phone,
       })),
     };
 

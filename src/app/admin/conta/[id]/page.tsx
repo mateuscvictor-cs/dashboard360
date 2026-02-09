@@ -730,8 +730,11 @@ export default function AccountPage() {
                               </div>
                               <p className="text-sm text-muted-foreground truncate">{contact.role || "Sem cargo"}</p>
                             </div>
-                            <div className="text-right text-sm">
+                            <div className="text-right text-sm min-w-0">
                               <p className="text-muted-foreground truncate">{contact.email}</p>
+                              {contact.phone && (
+                                <p className="text-muted-foreground truncate text-xs mt-0.5">{contact.phone}</p>
+                              )}
                             </div>
                           </div>
                         ))}

@@ -61,6 +61,7 @@ type SupportContact = {
   name: string;
   role: string | null;
   email: string;
+  phone: string | null;
 };
 
 type OnboardingStep = {
@@ -598,6 +599,9 @@ export default function ClienteDashboardPage() {
                                   <p className="text-sm text-muted-foreground">
                                     {contact.role || "Suporte"}
                                   </p>
+                                  {contact.phone && (
+                                    <p className="text-sm text-muted-foreground mt-0.5">{contact.phone}</p>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -613,6 +617,18 @@ export default function ClienteDashboardPage() {
                                 <MessageSquare className="h-4 w-4" />
                                 Email
                               </Button>
+                              {contact.phone && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 gap-2"
+                                  onClick={() =>
+                                    window.open(`tel:${contact.phone}`, "_self")
+                                  }
+                                >
+                                  Ligar
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))

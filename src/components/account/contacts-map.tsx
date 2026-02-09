@@ -56,6 +56,9 @@ export function ContactsMap({ contacts }: ContactsMapProps) {
               </div>
               <p className="text-sm text-muted-foreground truncate">{contact.role}</p>
               <p className="text-xs text-muted-foreground truncate">{contact.email}</p>
+              {contact.phone && (
+                <p className="text-xs text-muted-foreground truncate">{contact.phone}</p>
+              )}
 
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="secondary" className={cn("gap-1", engagement.color)}>
