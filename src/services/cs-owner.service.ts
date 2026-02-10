@@ -52,6 +52,7 @@ export const csOwnerService = {
 
   async findAllWithMetrics() {
     const csOwners = await prisma.cSOwner.findMany({
+      where: { user: { isActive: true } },
       include: {
         companies: {
           select: {

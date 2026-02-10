@@ -542,7 +542,7 @@ export default function EditarEmpresaPage() {
         }
       }
 
-      router.push("/admin/empresas");
+      router.push(`/admin/conta/${id}`);
     } catch (error) {
       console.error("Erro ao salvar:", error);
       alert("Erro ao salvar alterações");

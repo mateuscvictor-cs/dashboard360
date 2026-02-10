@@ -14,7 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const user = session.user as { csOwnerId?: string };
+    const user = session.user as { role?: string; csOwnerId?: string };
     const { id, stepId } = await params;
 
     const company = await prisma.company.findUnique({
@@ -26,7 +26,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
     }
 
-    if (company.csOwnerId !== user.csOwnerId) {
+    if (user.role !== "ADMIN" && company.csOwnerId !== user.csOwnerId) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
     }
 
@@ -63,7 +63,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const user = session.user as { csOwnerId?: string };
+    const user = session.user as { role?: string; csOwnerId?: string };
     const { id, stepId } = await params;
 
     const company = await prisma.company.findUnique({
@@ -75,7 +75,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
     }
 
-    if (company.csOwnerId !== user.csOwnerId) {
+    if (user.role !== "ADMIN" && company.csOwnerId !== user.csOwnerId) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
     }
 

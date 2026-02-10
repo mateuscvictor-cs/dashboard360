@@ -17,7 +17,7 @@ export function formatDate(date: Date | string): string {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(date));
+  }).format(parseDateOnly(date));
 }
 
 export function formatRelativeTime(date: Date | string): string {
@@ -50,8 +50,7 @@ export type CadenceType = "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "CUSTOM"
 
 export function calculateNextDate(baseDate: Date | string, cadence: CadenceType | string | null): Date | null {
   if (!cadence || cadence === "CUSTOM") return null;
-  
-  const date = new Date(baseDate);
+  const date = parseDateOnly(baseDate);
   
   switch (cadence.toUpperCase()) {
     case "DAILY":
@@ -79,9 +78,8 @@ export function calculateNextOccurrences(
   count: number = 5
 ): Date[] {
   if (!cadence || cadence === "CUSTOM") return [];
-  
   const dates: Date[] = [];
-  let currentDate = new Date(baseDate);
+  let currentDate = parseDateOnly(baseDate);
   
   for (let i = 0; i < count; i++) {
     const nextDate = calculateNextDate(currentDate, cadence);
@@ -107,12 +105,21 @@ export function getCadenceLabel(cadence: string | null): string {
   return labels[cadence.toUpperCase()] || cadence;
 }
 
+export function parseDateOnly(date: Date | string): Date {
+  const s = typeof date === "string" ? date : date.toISOString();
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, y, m, d] = match;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  return new Date(date);
+}
+
 export function getDaysUntil(date: Date | string): number {
-  const target = new Date(date);
+  const target = parseDateOnly(date);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   target.setHours(0, 0, 0, 0);
-  
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
@@ -120,5 +127,5 @@ export function formatDateShort(date: Date | string): string {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
-  }).format(new Date(date));
+  }).format(parseDateOnly(date));
 }

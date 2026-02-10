@@ -369,7 +369,10 @@ export const csPerformanceService = {
     const dateOnly = new Date(targetDate.toISOString().split("T")[0]);
 
     return prisma.cSPerformanceSnapshot.findMany({
-      where: { date: dateOnly },
+      where: {
+        date: dateOnly,
+        csOwner: { user: { isActive: true } },
+      },
       include: {
         csOwner: {
           select: {
@@ -390,7 +393,10 @@ export const csPerformanceService = {
     const dateOnly = new Date(targetDate.toISOString().split("T")[0]);
 
     const snapshots = await prisma.cSPerformanceSnapshot.findMany({
-      where: { date: dateOnly },
+      where: {
+        date: dateOnly,
+        csOwner: { user: { isActive: true } },
+      },
     });
 
     if (snapshots.length === 0) return null;
@@ -412,6 +418,7 @@ export const csPerformanceService = {
 
   async getAllWithLatestSnapshot() {
     const csOwners = await prisma.cSOwner.findMany({
+      where: { user: { isActive: true } },
       include: {
         companies: {
           select: { id: true },
