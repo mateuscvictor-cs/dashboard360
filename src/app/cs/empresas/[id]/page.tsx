@@ -52,6 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, formatDateShort, getCadenceLabel, calculateNextDate, getDaysUntil } from "@/lib/utils";
+import { DELIVERY_TYPE_OPTIONS, DELIVERY_TYPE_VALUES } from "@/lib/delivery-types";
 import { UpcomingDeliverables } from "@/components/upcoming-deliverables";
 import { DeliveryCompletionDialog, SendNPSButton } from "@/components/cs";
 import { CompanySurveysCard } from "@/components/company-surveys-card";
@@ -175,6 +176,8 @@ export default function CSEmpresaDetalhePage() {
     dueDate: "",
     assignee: "",
     impact: "MEDIUM",
+    type: "",
+    typeOtherSpec: "",
   });
 
   const [newEvent, setNewEvent] = useState(initialEventForm);
@@ -264,10 +267,15 @@ export default function CSEmpresaDetalhePage() {
 
     setSaving(true);
     try {
+      const payload = {
+        ...newDelivery,
+        type: DELIVERY_TYPE_VALUES.includes(newDelivery.type as never) ? newDelivery.type : undefined,
+        typeOtherSpec: newDelivery.type === "OTHER" ? (newDelivery.typeOtherSpec?.trim() || undefined) : undefined,
+      };
       const response = await fetch(`/api/cs/empresas/${id}/deliveries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDelivery),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -277,7 +285,7 @@ export default function CSEmpresaDetalhePage() {
           deliveries: [delivery, ...prev.deliveries],
         } : null);
         setShowDeliveryModal(false);
-        setNewDelivery({ title: "", status: "PENDING", dueDate: "", assignee: "", impact: "MEDIUM" });
+        setNewDelivery({ title: "", status: "PENDING", dueDate: "", assignee: "", impact: "MEDIUM", type: "", typeOtherSpec: "" });
       }
     } catch (err) {
       console.error("Erro ao adicionar entregável:", err);
@@ -884,6 +892,21 @@ export default function CSEmpresaDetalhePage() {
               <label className="text-sm font-medium">Título *</label>
               <Input placeholder="Nome do entregável" value={newDelivery.title} onChange={(e) => setNewDelivery(prev => ({ ...prev, title: e.target.value }))} />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo</label>
+              <Select value={newDelivery.type || ""} onValueChange={(value) => setNewDelivery(prev => ({ ...prev, type: value }))}>
+                <SelectTrigger><SelectValue placeholder="Tipo da entrega" /></SelectTrigger>
+                <SelectContent>
+                  {DELIVERY_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {newDelivery.type === "OTHER" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Especificar</label>
+                <Input placeholder="Ex.: Consultoria" value={newDelivery.typeOtherSpec} onChange={(e) => setNewDelivery(prev => ({ ...prev, typeOtherSpec: e.target.value }))} />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status</label>

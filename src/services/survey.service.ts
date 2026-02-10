@@ -117,7 +117,7 @@ export const surveyService = {
           deliveryId: data.deliveryId,
           completedById: data.completedById,
           feedback: data.feedback,
-          fathomLink: data.fathomLink.trim(),
+          fathomLink: data.fathomLink?.trim() || null,
         },
       }),
       prisma.delivery.update({

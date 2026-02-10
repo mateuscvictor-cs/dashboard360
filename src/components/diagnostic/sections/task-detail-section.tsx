@@ -393,8 +393,8 @@ export function TaskDetailSection({
   };
 
   return (
-    <div className="flex flex-col h-full" onKeyDown={handleKeyDown}>
-      <div className="flex items-center justify-center gap-4 p-4 border-b border-border/50">
+    <div className="flex flex-col h-full min-h-0" onKeyDown={handleKeyDown}>
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 p-3 sm:p-4 border-b border-border/50 shrink-0">
         {tasks.map((task, index) => (
           <motion.button
             key={index}
@@ -443,7 +443,7 @@ export function TaskDetailSection({
         )}
       </div>
 
-      <div className="flex-1 flex items-center justify-center overflow-y-auto py-4">
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-y-auto py-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={`${currentTaskIndex}-${currentQuestion}`}
@@ -458,21 +458,21 @@ export function TaskDetailSection({
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-between p-6 border-t border-border/50">
-        <Button variant="ghost" onClick={handlePrev} className="gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6 border-t border-border/50 shrink-0">
+        <Button variant="ghost" onClick={handlePrev} className="gap-2 shrink-0">
           <ArrowLeft className="h-4 w-4" />
-          Voltar
+          <span className="hidden sm:inline">Voltar</span>
         </Button>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 order-first w-full justify-center sm:order-none sm:w-auto sm:flex-1">
+          <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
             <span>Tarefa {currentTaskIndex + 1}/{tasks.length}</span>
             <span>·</span>
             <span>Pergunta {currentQuestion + 1}/{questions.length}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 flex-1 sm:flex-initial justify-end">
           {isLastQuestion && (
             <Button
               variant="outline"

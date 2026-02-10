@@ -10,6 +10,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const projectStatus = searchParams.get("projectStatus");
     const limit = searchParams.get("limit");
 
     const where: Record<string, unknown> = {};
@@ -19,6 +20,13 @@ export async function GET(request: Request) {
     if (status) {
       const statuses = status.split(",").map((s) => s.trim().toUpperCase());
       where.healthStatus = { in: statuses };
+    }
+    if (projectStatus) {
+      const valid = ["IN_PROGRESS", "PAUSED", "CONCLUDED"];
+      const values = projectStatus.split(",").map((s) => s.trim().toUpperCase()).filter((s) => valid.includes(s));
+      if (values.length > 0) {
+        where.projectStatus = values.length === 1 ? values[0] : { in: values };
+      }
     }
 
     const companies = await prisma.company.findMany({

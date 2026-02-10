@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { CheckCircle2, AlertCircle } from "lucide-react"
+import { CheckCircle2, AlertCircle, Link as LinkIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 
 interface DeliveryCompletionDialogProps {
   open: boolean
@@ -30,6 +31,7 @@ export function DeliveryCompletionDialog({
   onComplete,
 }: DeliveryCompletionDialogProps) {
   const [feedback, setFeedback] = React.useState("")
+  const [fathomLink, setFathomLink] = React.useState("")
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -46,7 +48,10 @@ export function DeliveryCompletionDialog({
       const response = await fetch(`/api/deliveries/${delivery.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feedback: feedback.trim() }),
+        body: JSON.stringify({
+          feedback: feedback.trim(),
+          ...(fathomLink.trim() && { fathomLink: fathomLink.trim() }),
+        }),
       })
 
       if (!response.ok) {
@@ -55,6 +60,7 @@ export function DeliveryCompletionDialog({
       }
 
       setFeedback("")
+      setFathomLink("")
       onOpenChange(false)
       onComplete()
     } catch (err) {
@@ -101,6 +107,21 @@ export function DeliveryCompletionDialog({
                 {feedback.trim().length}/{minLength}
               </span>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="fathomLink" className="text-sm font-medium flex items-center gap-1.5">
+              <LinkIcon className="h-4 w-4 text-muted-foreground" />
+              Link do Fathom <span className="text-muted-foreground font-normal">(opcional)</span>
+            </label>
+            <Input
+              id="fathomLink"
+              type="url"
+              placeholder="https://app.usefathom.com/..."
+              value={fathomLink}
+              onChange={(e) => setFathomLink(e.target.value)}
+              className="font-mono text-sm"
+            />
           </div>
 
           {error && (

@@ -126,7 +126,7 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {}
 
-    const validTypes = ["AUTOMATION", "IPC", "OTHER"]
+    const validTypes = ["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"]
     if (body.title !== undefined) updateData.title = body.title
     if (body.description !== undefined) updateData.description = body.description
     if (body.impactDescription !== undefined) updateData.impactDescription = body.impactDescription

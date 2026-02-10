@@ -115,6 +115,7 @@ export async function GET() {
         take: 5,
       }),
       prisma.cSOwner.findMany({
+        where: { user: { isActive: true } },
         include: {
           checklistItems: {
             where: {

@@ -275,7 +275,7 @@ export default function PublicDiagnosticPage({
   }
 
   return (
-    <div className="h-screen overflow-hidden">
+    <div className="min-h-screen flex flex-col md:h-screen md:overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <DiagnosticWizard
         diagnosticId={diagnostic?.id || ""}
         companyName={diagnostic?.companyName || ""}

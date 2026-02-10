@@ -160,8 +160,8 @@ export function IdentificationSection({
   };
 
   return (
-    <div className="flex flex-col h-full" onKeyDown={handleKeyDown}>
-      <div className="flex-1 flex items-center justify-center">
+    <div className="flex flex-col h-full min-h-0" onKeyDown={handleKeyDown}>
+      <div className="flex-1 flex items-center justify-center min-h-0 overflow-y-auto py-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion}
@@ -176,18 +176,18 @@ export function IdentificationSection({
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-between p-6 border-t border-border/50">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6 border-t border-border/50 shrink-0">
         <Button
           variant="ghost"
           onClick={handlePrev}
           disabled={currentQuestion === 0}
-          className="gap-2"
+          className="gap-2 shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
-          Voltar
+          <span className="hidden sm:inline">Voltar</span>
         </Button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 order-first w-full justify-center sm:order-none sm:w-auto sm:flex-1">
           {questions.map((_, index) => (
             <motion.div
               key={index}
@@ -208,7 +208,7 @@ export function IdentificationSection({
         <Button
           onClick={handleNext}
           disabled={!canAdvance}
-          className="gap-2"
+          className="gap-2 shrink-0 flex-1 sm:flex-initial"
         >
           {isLastQuestion ? "Próxima Seção" : "Continuar"}
           <ArrowRight className="h-4 w-4" />

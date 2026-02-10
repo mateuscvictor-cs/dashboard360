@@ -22,20 +22,9 @@ export async function POST(
       )
     }
 
-    if (!body.fathomLink || typeof body.fathomLink !== "string" || !body.fathomLink.trim()) {
-      return NextResponse.json(
-        { error: "Link do Fathom é obrigatório" },
-        { status: 400 }
-      )
-    }
+    const fathomLink = typeof body.fathomLink === "string" ? body.fathomLink.trim() : undefined
 
     const proofDocuments = Array.isArray(body.proofDocuments) ? body.proofDocuments : []
-    if (proofDocuments.length === 0) {
-      return NextResponse.json(
-        { error: "É obrigatório anexar ao menos uma prova (print, documento ou vídeo)" },
-        { status: 400 }
-      )
-    }
     for (const p of proofDocuments) {
       if (!p.url || typeof p.url !== "string" || !p.url.trim()) {
         return NextResponse.json(
@@ -105,7 +94,7 @@ export async function POST(
       deliveryId: id,
       completedById,
       feedback: body.feedback.trim(),
-      fathomLink: body.fathomLink.trim(),
+      fathomLink: fathomLink || undefined,
       proofDocuments: proofDocuments.map((p: { title?: string; url: string; type?: string }) => ({
         title: (p.title && String(p.title).trim()) || "Prova",
         url: String(p.url).trim(),

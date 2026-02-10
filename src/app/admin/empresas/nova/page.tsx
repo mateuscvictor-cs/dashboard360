@@ -91,7 +91,7 @@ interface Contact {
   isDecisionMaker: boolean;
 }
 
-const segments = ["Enterprise", "Mid-Market", "SMB", "Startup"];
+const segments = ["Clínica", "Saúde", "Tecnologia", "Indústria", "Varejo", "Serviços", "Educação", "Financeiro", "Startup"];
 const frameworks = ["ICIA", "COPA", "ICIA Outsourcing", "CNH da IA", "Outro"];
 const impacts = [
   { value: "high", label: "Alto" },

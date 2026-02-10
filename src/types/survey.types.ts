@@ -58,7 +58,7 @@ export interface CompleteDeliveryInput {
   deliveryId: string
   completedById: string
   feedback: string
-  fathomLink: string
+  fathomLink?: string | null
   proofDocuments?: { title: string; url: string; type: string }[]
 }
 

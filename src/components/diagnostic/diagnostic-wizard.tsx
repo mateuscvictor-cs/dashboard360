@@ -200,8 +200,8 @@ export function DiagnosticWizard({
   const progress = ((currentSection + 1) / SECTIONS.length) * 100;
 
   return (
-    <div className="flex h-full bg-background">
-      <div className="hidden md:flex flex-col w-64 border-r border-border/50 bg-muted/30">
+    <div className="flex flex-1 flex-col md:flex-row min-h-0 w-full bg-background">
+      <div className="hidden md:flex flex-col w-64 shrink-0 border-r border-border/50 bg-muted/30">
         <div className="p-6">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Diagnóstico Operacional
@@ -270,8 +270,8 @@ export function DiagnosticWizard({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="md:hidden p-4 border-b border-border/50">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        <div className="md:hidden shrink-0 p-3 sm:p-4 border-b border-border/50">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground">
               {SECTIONS[currentSection].title}
@@ -290,7 +290,7 @@ export function DiagnosticWizard({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentSection}
@@ -298,7 +298,7 @@ export function DiagnosticWizard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
-              className="h-full"
+              className="min-h-full py-4 px-3 sm:px-6"
             >
               {renderSection()}
             </motion.div>

@@ -27,6 +27,12 @@ enum HealthStatus {
   HEALTHY
 }
 
+enum CompanyProjectStatus {
+  IN_PROGRESS
+  PAUSED
+  CONCLUDED
+}
+
 enum Priority {
   URGENT
   HIGH
@@ -239,6 +245,9 @@ enum ClientApprovalStatus {
 enum DeliveryType {
   AUTOMATION
   IPC
+  MEETING
+  WORKSHOP
+  HOTSEAT
   OTHER
 }
 
@@ -471,6 +480,7 @@ model Company {
   contractEnd        DateTime?
   onboardingStatus   String?
   memberInviteLimit  Int      @default(0)
+  projectStatus      CompanyProjectStatus?
 
   csOwner   CSOwner? @relation(fields: [csOwnerId], references: [id])
   csOwnerId String?

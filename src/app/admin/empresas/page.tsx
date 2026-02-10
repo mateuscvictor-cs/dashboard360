@@ -46,6 +46,7 @@ interface Company {
   mrr: number;
   healthScore: number;
   healthStatus: string;
+  projectStatus: string | null;
   csOwner: { id: string; name: string } | null;
   squad: { id: string; name: string } | null;
 }
@@ -76,6 +77,7 @@ export default function EmpresasPage() {
   const [filterSquadId, setFilterSquadId] = useState<string>("all");
   const [filterHealth, setFilterHealth] = useState<string>("all");
   const [filterFramework, setFilterFramework] = useState<string>("all");
+  const [filterProjectStatus, setFilterProjectStatus] = useState<string>("all");
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,7 +112,8 @@ export default function EmpresasPage() {
     filterCsOwnerId !== "all" ||
     filterSquadId !== "all" ||
     filterHealth !== "all" ||
-    filterFramework !== "all";
+    filterFramework !== "all" ||
+    filterProjectStatus !== "all";
 
   const clearFilters = () => {
     setFilterSegment("all");
@@ -118,6 +121,7 @@ export default function EmpresasPage() {
     setFilterSquadId("all");
     setFilterHealth("all");
     setFilterFramework("all");
+    setFilterProjectStatus("all");
   };
 
   const fetchCompanies = async () => {
@@ -149,6 +153,9 @@ export default function EmpresasPage() {
       list = list.filter((c) => c.healthStatus === status);
     }
     if (filterFramework !== "all") list = list.filter((c) => c.framework === filterFramework);
+    if (filterProjectStatus !== "all") {
+      list = list.filter((c) => (c.projectStatus ?? "") === filterProjectStatus);
+    }
     return [...list].sort((a, b) => {
       let comparison = 0;
       if (sortBy === "name") comparison = a.name.localeCompare(b.name);
@@ -164,6 +171,7 @@ export default function EmpresasPage() {
     filterSquadId,
     filterHealth,
     filterFramework,
+    filterProjectStatus,
     sortBy,
     sortOrder,
   ]);
@@ -354,7 +362,7 @@ export default function EmpresasPage() {
               Filtros
               {hasActiveFilters && (
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                  {[filterSegment, filterCsOwnerId, filterSquadId, filterHealth, filterFramework].filter((v) => v !== "all").length}
+                  {[filterSegment, filterCsOwnerId, filterSquadId, filterHealth, filterFramework, filterProjectStatus].filter((v) => v !== "all").length}
                 </Badge>
               )}
             </Button>
@@ -379,7 +387,7 @@ export default function EmpresasPage() {
                   </Button>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1.5 block">Segmento</label>
                   <Select value={filterSegment} onValueChange={setFilterSegment}>
@@ -459,6 +467,20 @@ export default function EmpresasPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Status do projeto</label>
+                  <Select value={filterProjectStatus} onValueChange={setFilterProjectStatus}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="IN_PROGRESS">Em andamento</SelectItem>
+                      <SelectItem value="PAUSED">Em pausa</SelectItem>
+                      <SelectItem value="CONCLUDED">Projeto concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -508,6 +530,9 @@ export default function EmpresasPage() {
                     </th>
                     <th className="p-4 text-left text-sm font-medium text-muted-foreground">
                       Segmento
+                    </th>
+                    <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                      Status projeto
                     </th>
                     <th className="p-4 text-left">
                       <button
@@ -564,6 +589,28 @@ export default function EmpresasPage() {
                       </td>
                       <td className="p-4">
                         <span className="text-sm">{company.segment || "-"}</span>
+                      </td>
+                      <td className="p-4">
+                        {company.projectStatus ? (
+                          <Badge
+                            variant={
+                              company.projectStatus === "CONCLUDED"
+                                ? "healthy"
+                                : company.projectStatus === "PAUSED"
+                                  ? "attention"
+                                  : "secondary"
+                            }
+                            className="text-xs"
+                          >
+                            {company.projectStatus === "CONCLUDED"
+                              ? "Concluído"
+                              : company.projectStatus === "PAUSED"
+                                ? "Em pausa"
+                                : "Em andamento"}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">

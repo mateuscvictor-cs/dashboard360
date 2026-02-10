@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { deliveryTypeConfig } from "@/lib/delivery-types";
 import { DeliveryMeetingForm } from "@/components/delivery/delivery-meeting-form";
 import { DeliveryDocumentForm } from "@/components/delivery/delivery-document-form";
 import { DeliveryDependenciesList } from "@/components/delivery/delivery-dependencies-list";
@@ -163,12 +164,6 @@ const documentTypeConfig: Record<string, { label: string; icon: typeof FileText 
   IMAGE: { label: "Imagem", icon: FileText },
   LINK: { label: "Link", icon: LinkIcon },
   OTHER: { label: "Outro", icon: FileText },
-};
-
-const deliveryTypeConfig: Record<string, string> = {
-  AUTOMATION: "Automação",
-  IPC: "IPC",
-  OTHER: "Outro",
 };
 
 export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{ id: string }> }) {

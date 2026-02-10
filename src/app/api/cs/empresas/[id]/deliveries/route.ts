@@ -30,7 +30,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, status, progress, dueDate, assignee, impact } = body;
+    const { title, status, progress, dueDate, assignee, impact, type, typeOtherSpec } = body;
+    const validTypes = ["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"];
+    const deliveryType = type && validTypes.includes(type) ? type : undefined;
 
     if (!title) {
       return NextResponse.json({ error: "Título é obrigatório" }, { status: 400 });
@@ -39,6 +41,9 @@ export async function POST(
     const delivery = await prisma.delivery.create({
       data: {
         title,
+        description: body.description ?? undefined,
+        type: deliveryType,
+        typeOtherSpec: typeOtherSpec ?? undefined,
         status: status || "PENDING",
         progress: progress || 0,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -80,6 +85,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
     }
 
+    const validTypes = ["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"];
+    const typeValue = data.type && validTypes.includes(data.type) ? data.type : undefined;
+
     const updated = await prisma.delivery.update({
       where: { id: deliveryId },
       data: {
@@ -89,6 +97,8 @@ export async function PATCH(request: Request) {
         ...(data.dueDate && { dueDate: new Date(data.dueDate) }),
         ...(data.assignee !== undefined && { assignee: data.assignee }),
         ...(data.impact && { impact: data.impact }),
+        ...(typeValue !== undefined && { type: typeValue }),
+        ...(data.typeOtherSpec !== undefined && { typeOtherSpec: data.typeOtherSpec }),
       },
     });
 

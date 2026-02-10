@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validTypes = ["AUTOMATION", "IPC", "OTHER"]
+    const validTypes = ["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"]
     const delivery = await prisma.delivery.create({
       data: {
         title: body.title,

@@ -102,25 +102,43 @@ export async function PATCH(
 
     const body = await request.json();
 
+    const parseNum = (v: unknown): number | undefined => {
+      if (v === undefined || v === null || v === "") return undefined;
+      const n = typeof v === "number" ? v : parseFloat(String(v));
+      return Number.isNaN(n) ? undefined : n;
+    };
+
+    const csOwnerId = body.csOwnerId === "" || body.csOwnerId === undefined ? null : body.csOwnerId;
+    const squadId = body.squadId === "" || body.squadId === undefined ? null : body.squadId;
+
+    const data: Parameters<typeof prisma.company.update>[0]["data"] = {
+      name: body.name,
+      segment: body.segment ?? undefined,
+      plan: body.plan ?? undefined,
+      framework: body.framework ?? undefined,
+      tags: Array.isArray(body.tags) ? body.tags : undefined,
+      docsLink: body.docsLink ?? undefined,
+      fathomLink: body.fathomLink ?? undefined,
+      csOwner: csOwnerId ? { connect: { id: csOwnerId } } : { disconnect: true },
+      squad: squadId ? { connect: { id: squadId } } : { disconnect: true },
+    };
+    const billedAmount = parseNum(body.billedAmount);
+    if (billedAmount !== undefined) data.billedAmount = billedAmount;
+    const cashIn = parseNum(body.cashIn);
+    if (cashIn !== undefined) data.cashIn = cashIn;
+    const mrr = parseNum(body.mrr);
+    if (mrr !== undefined) data.mrr = mrr;
+    if (body.contractStart) data.contractStart = new Date(body.contractStart);
+    if (body.contractEnd) data.contractEnd = new Date(body.contractEnd);
+    if (body.projectStatus === null || body.projectStatus === "") {
+      data.projectStatus = null;
+    } else if (body.projectStatus !== undefined && ["IN_PROGRESS", "PAUSED", "CONCLUDED"].includes(body.projectStatus)) {
+      data.projectStatus = body.projectStatus;
+    }
+
     const company = await prisma.company.update({
       where: { id },
-      data: {
-        name: body.name,
-        cnpj: body.cnpj,
-        segment: body.segment,
-        plan: body.plan,
-        framework: body.framework,
-        billedAmount: body.billedAmount ? parseFloat(body.billedAmount) : undefined,
-        cashIn: body.cashIn ? parseFloat(body.cashIn) : undefined,
-        mrr: body.mrr ? parseFloat(body.mrr) : undefined,
-        tags: body.tags,
-        csOwnerId: body.csOwnerId,
-        squadId: body.squadId,
-        contractStart: body.contractStart ? new Date(body.contractStart) : undefined,
-        contractEnd: body.contractEnd ? new Date(body.contractEnd) : undefined,
-        docsLink: body.docsLink,
-        fathomLink: body.fathomLink,
-      },
+      data,
       include: {
         contacts: true,
         deliveries: true,

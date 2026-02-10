@@ -47,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { calculateNextDate, formatDateShort } from "@/lib/utils";
+import { DELIVERY_TYPE_OPTIONS, DELIVERY_TYPE_VALUES } from "@/lib/delivery-types";
 import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments } from "@/components/company";
 import {
   Tooltip,
@@ -66,6 +67,8 @@ interface Delivery {
   assignee: string;
   impact: "high" | "medium" | "low";
   cadence: CadenceType;
+  type: string;
+  typeOtherSpec: string;
 }
 
 interface Contact {
@@ -97,7 +100,7 @@ interface Hotseat {
   cadence: CadenceType;
 }
 
-const segments = ["Enterprise", "Mid-Market", "SMB", "Startup"];
+const segments = ["Clínica", "Saúde", "Tecnologia", "Indústria", "Varejo", "Serviços", "Educação", "Financeiro", "Startup"];
 const frameworks = ["ICIA", "COPA", "ICIA Outsourcing", "CNH da IA", "Outro"];
 const impacts = [
   { value: "high", label: "Alto" },
@@ -122,6 +125,7 @@ interface CompanyData {
   segment: string | null;
   plan: string | null;
   framework: string | null;
+  projectStatus: string | null;
   billedAmount: number;
   cashIn: number;
   mrr: number;
@@ -149,6 +153,8 @@ interface CompanyData {
     assignee: string | null;
     impact: string;
     cadence: string | null;
+    type: string | null;
+    typeOtherSpec: string | null;
   }>;
   workshops: Array<{
     id: string;
@@ -203,6 +209,7 @@ export default function EditarEmpresaPage() {
     segment: "",
     framework: "",
     frameworkOther: "",
+    projectStatus: "",
     billedAmount: "",
     cashIn: "",
     mrr: "",
@@ -262,6 +269,7 @@ export default function EditarEmpresaPage() {
           segment: data.segment || "",
           framework: data.framework || data.plan || "",
           frameworkOther: "",
+          projectStatus: data.projectStatus || "",
           billedAmount: data.billedAmount?.toString() || "",
           cashIn: data.cashIn?.toString() || "",
           mrr: data.mrr.toString(),
@@ -284,6 +292,8 @@ export default function EditarEmpresaPage() {
             assignee: d.assignee || "",
             impact: (d.impact?.toLowerCase() || "medium") as "high" | "medium" | "low",
             cadence: (d.cadence?.toLowerCase() || "") as CadenceType,
+            type: d.type || "",
+            typeOtherSpec: d.typeOtherSpec || "",
           }))
         );
 
@@ -340,7 +350,7 @@ export default function EditarEmpresaPage() {
     }
   };
 
-  const addDelivery = () => setDeliveries([...deliveries, { title: "", description: "", dueDate: "", assignee: "", impact: "medium", cadence: "" }]);
+  const addDelivery = () => setDeliveries([...deliveries, { title: "", description: "", dueDate: "", assignee: "", impact: "medium", cadence: "", type: "", typeOtherSpec: "" }]);
   const removeDelivery = (index: number) => setDeliveries(deliveries.filter((_, i) => i !== index));
   const updateDelivery = (index: number, field: keyof Delivery, value: string) => {
     const updated = [...deliveries];
@@ -401,6 +411,7 @@ export default function EditarEmpresaPage() {
           fathomLink: formData.fathomLink,
           csOwnerId: formData.csOwnerId || undefined,
           squadId: formData.squadId || undefined,
+          projectStatus: formData.projectStatus ? formData.projectStatus : null,
         }),
       });
 
@@ -422,6 +433,9 @@ export default function EditarEmpresaPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: d.title,
+              description: d.description?.trim() || undefined,
+              type: DELIVERY_TYPE_VALUES.includes(d.type as never) ? d.type : undefined,
+              typeOtherSpec: d.type === "OTHER" ? (d.typeOtherSpec?.trim() || undefined) : undefined,
               dueDate: d.dueDate || null,
               assignee: d.assignee || null,
               impact,
@@ -435,6 +449,9 @@ export default function EditarEmpresaPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: d.title.trim(),
+              description: d.description?.trim() || undefined,
+              type: DELIVERY_TYPE_VALUES.includes(d.type as never) ? d.type : undefined,
+              typeOtherSpec: d.type === "OTHER" ? (d.typeOtherSpec?.trim() || undefined) : undefined,
               status: "PENDING",
               dueDate: d.dueDate || null,
               assignee: d.assignee || null,
@@ -795,6 +812,18 @@ export default function EditarEmpresaPage() {
                         </Select>
                       </div>
                     </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Status do projeto</label>
+                      <Select value={formData.projectStatus || "all"} onValueChange={(v) => setFormData({ ...formData, projectStatus: v === "all" ? "" : v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Não definido</SelectItem>
+                          <SelectItem value="IN_PROGRESS">Em andamento</SelectItem>
+                          <SelectItem value="PAUSED">Em pausa</SelectItem>
+                          <SelectItem value="CONCLUDED">Projeto concluído</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -991,6 +1020,23 @@ export default function EditarEmpresaPage() {
                       placeholder="Descrição..."
                       className="min-h-[60px]"
                     />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <label className="text-xs text-muted-foreground">Tipo</label>
+                        <Select value={delivery.type || ""} onValueChange={(v) => updateDelivery(index, "type", v)}>
+                          <SelectTrigger><SelectValue placeholder="Tipo da entrega" /></SelectTrigger>
+                          <SelectContent>
+                            {DELIVERY_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {delivery.type === "OTHER" && (
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <label className="text-xs text-muted-foreground">Especificar</label>
+                          <Input value={delivery.typeOtherSpec} onChange={(e) => updateDelivery(index, "typeOtherSpec", e.target.value)} placeholder="Ex.: Consultoria" />
+                        </div>
+                      )}
+                    </div>
                     <div className="grid grid-cols-4 gap-3">
                       <Input type="date" value={delivery.dueDate} onChange={(e) => updateDelivery(index, "dueDate", e.target.value)} />
                       <Select value={delivery.impact} onValueChange={(v) => updateDelivery(index, "impact", v)}>

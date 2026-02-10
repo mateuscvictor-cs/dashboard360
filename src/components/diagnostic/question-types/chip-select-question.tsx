@@ -61,7 +61,7 @@ export function ChipSelectQuestion({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={cn("flex flex-col items-center justify-center min-h-[400px] w-full max-w-3xl mx-auto px-4", className)}
+      className={cn("flex flex-col items-center justify-center min-h-[260px] sm:min-h-[400px] w-full max-w-3xl mx-auto px-3 sm:px-4", className)}
     >
       <div className="w-full space-y-6">
         <div className="space-y-2 text-center">
@@ -149,7 +149,7 @@ export function ChipSelectQuestion({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="flex justify-center gap-2 max-w-md mx-auto"
+            className="flex flex-col sm:flex-row justify-center gap-2 w-full max-w-md mx-auto min-w-0"
           >
             <Input
               value={customInput}

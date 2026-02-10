@@ -41,10 +41,15 @@ export async function POST(
     const { id } = await params;
     await requireCompanyAccess(id);
     const body = await request.json();
+    const validTypes = ["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"];
+    const type = body.type && validTypes.includes(body.type) ? body.type : undefined;
 
     const delivery = await prisma.delivery.create({
       data: {
         title: body.title,
+        description: body.description ?? undefined,
+        type,
+        typeOtherSpec: body.typeOtherSpec ?? undefined,
         status: body.status || "PENDING",
         progress: body.progress || 0,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
