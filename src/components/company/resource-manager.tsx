@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   X,
@@ -14,6 +14,8 @@ import {
   Loader2,
   ExternalLink,
   GripVertical,
+  Upload,
+  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { uploadFileToR2 } from "@/lib/upload-to-r2";
 
 type ResourceType = "AUTOMATION" | "IPC" | "LINK" | "DOCUMENT" | "VIDEO";
 
@@ -68,6 +71,8 @@ export function ResourceManager({ companyId }: ResourceManagerProps) {
   const [editingResource, setEditingResource] = useState<ClientResource | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const resourceFileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -171,6 +176,23 @@ export function ResourceManager({ companyId }: ResourceManagerProps) {
       console.error("Erro ao excluir recurso:", error);
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const uploadResourceFile = async (file: File) => {
+    setUploadingFile(true);
+    try {
+      const { readUrl } = await uploadFileToR2(file, "resource", companyId);
+      setForm((prev) => ({
+        ...prev,
+        url: readUrl,
+        title: prev.title.trim() ? prev.title : file.name.replace(/\.[^/.]+$/, "") || file.name,
+      }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro no upload");
+    } finally {
+      setUploadingFile(false);
+      if (resourceFileInputRef.current) resourceFileInputRef.current.value = "";
     }
   };
 
@@ -279,14 +301,30 @@ export function ResourceManager({ companyId }: ResourceManagerProps) {
 
                     <div className="flex items-center gap-1">
                       {resource.url && (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => window.open(resource.url!, "_blank")}
-                          className="h-7 w-7"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            asChild
+                            className="h-7 w-7"
+                          >
+                            <a
+                              href={`/api/storage/download?url=${encodeURIComponent(resource.url)}&filename=${encodeURIComponent(resource.title)}`}
+                              aria-label="Baixar"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => window.open(resource.url!, "_blank")}
+                            className="h-7 w-7"
+                            aria-label="Abrir em nova aba"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       )}
                       <Button
                         variant="ghost"
@@ -387,13 +425,45 @@ export function ResourceManager({ companyId }: ResourceManagerProps) {
 
             <div>
               <label className="text-sm font-medium mb-2 block">URL</label>
-              <input
-                type="url"
-                value={form.url}
-                onChange={(e) => setForm({ ...form, url: e.target.value })}
-                className="w-full h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                placeholder="https://..."
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={form.url}
+                  onChange={(e) => setForm({ ...form, url: e.target.value })}
+                  className="flex-1 h-10 rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="https://... ou envie um arquivo"
+                />
+                {(form.type === "DOCUMENT" || form.type === "VIDEO") && (
+                  <>
+                    <input
+                      ref={resourceFileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept={form.type === "VIDEO" ? "video/*" : undefined}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadResourceFile(f);
+                      }}
+                      disabled={uploadingFile}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => resourceFileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                    >
+                      {uploadingFile ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      <span className="ml-1 hidden sm:inline">Enviar arquivo</span>
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             <div>

@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCompanyAccess, getSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
+
+function normalizeAttachments(
+  raw: unknown
+): { fileName: string; url: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (x): x is { fileName?: string; url?: string } =>
+        x != null && typeof x === "object"
+    )
+    .filter((x) => typeof x.fileName === "string" && typeof x.url === "string")
+    .map((x) => ({ fileName: x.fileName!, url: x.url! }));
+}
 import { notificationService } from "@/services/notification.service";
 
 export async function GET(
@@ -67,12 +80,14 @@ export async function POST(
     const mentionIds: string[] = Array.isArray(body.mentions) ? body.mentions : [];
     const authorId = (session?.user as { id: string }).id;
     const uniqueMentionIds = [...new Set(mentionIds)];
+    const attachments = normalizeAttachments(body.attachments);
 
     const comment = await prisma.companyComment.create({
       data: {
         content: body.content.trim(),
         companyId,
         authorId,
+        attachments,
         mentions: {
           create: uniqueMentionIds.map((mentionedUserId) => ({
             mentionedUserId,

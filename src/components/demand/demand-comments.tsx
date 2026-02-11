@@ -1,16 +1,23 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { MessageSquare, Send, Loader2 } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { MessageSquare, Send, Loader2, Paperclip, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { uploadFileToR2 } from "@/lib/upload-to-r2";
+
+interface CommentAttachment {
+  fileName: string;
+  url: string;
+}
 
 interface Comment {
   id: string;
   content: string;
   createdAt: string;
   author: { id: string; name: string | null; image: string | null; role: string };
+  attachments?: CommentAttachment[] | null;
 }
 
 interface DemandCommentsProps {
@@ -22,6 +29,14 @@ export function DemandComments({ demandId }: DemandCommentsProps) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadAttachment = async (file: File): Promise<CommentAttachment | null> => {
+    const { readUrl, fileName } = await uploadFileToR2(file, "comment");
+    return { fileName, url: readUrl };
+  };
 
   const fetchComments = useCallback(async () => {
     setFetching(true);
@@ -40,19 +55,40 @@ export function DemandComments({ demandId }: DemandCommentsProps) {
     fetchComments();
   }, [fetchComments]);
 
+  const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files;
+    if (!selected?.length) return;
+    setUploadingAttachment(true);
+    try {
+      for (let i = 0; i < selected.length; i++) {
+        const att = await uploadAttachment(selected[i]);
+        if (att) setPendingAttachments((prev) => [...prev, att]);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao anexar");
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async () => {
     const trimmed = content.trim();
-    if (!trimmed || loading) return;
+    if ((!trimmed && pendingAttachments.length === 0) || loading) return;
 
     setLoading(true);
     try {
       const res = await fetch(`/api/demands/${demandId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed }),
+        body: JSON.stringify({
+          content: trimmed || " ",
+          attachments: pendingAttachments,
+        }),
       });
       if (res.ok) {
         setContent("");
+        setPendingAttachments([]);
         fetchComments();
       } else {
         const err = await res.json();
@@ -70,6 +106,34 @@ export function DemandComments({ demandId }: DemandCommentsProps) {
         <span className="font-medium">Comentários ({comments.length})</span>
       </div>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        multiple
+        onChange={handleFileAttach}
+        disabled={uploadingAttachment}
+      />
+      {pendingAttachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {pendingAttachments.map((att, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs"
+            >
+              <span className="truncate max-w-[120px]">{att.fileName}</span>
+              <button
+                type="button"
+                onClick={() => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Remover anexo"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex gap-2">
         <Textarea
           placeholder="Adicione um comentário..."
@@ -78,7 +142,22 @@ export function DemandComments({ demandId }: DemandCommentsProps) {
           rows={2}
           className="resize-none"
         />
-        <Button onClick={handleSubmit} disabled={loading || !content.trim()} size="icon" className="shrink-0 h-10">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 h-10"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingAttachment}
+          aria-label="Anexar arquivo"
+        >
+          {uploadingAttachment ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Paperclip className="h-4 w-4" />
+          )}
+        </Button>
+        <Button onClick={handleSubmit} disabled={loading || (!content.trim() && pendingAttachments.length === 0)} size="icon" className="shrink-0 h-10">
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -109,6 +188,30 @@ export function DemandComments({ demandId }: DemandCommentsProps) {
                   <span>{new Date(c.createdAt).toLocaleString("pt-BR")}</span>
                 </div>
                 <p className="text-sm mt-1 whitespace-pre-wrap">{c.content}</p>
+                {Array.isArray(c.attachments) && c.attachments.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {c.attachments.map((att, idx) => (
+                      <li key={idx} className="flex items-center gap-1">
+                        <a
+                          href={`/api/storage/download?url=${encodeURIComponent(att.url)}&filename=${encodeURIComponent(att.fileName)}`}
+                          className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          <Download className="h-3 w-3" />
+                          {att.fileName}
+                        </a>
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-muted-foreground hover:underline"
+                          aria-label="Abrir em nova aba"
+                        >
+                          Abrir
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           ))}

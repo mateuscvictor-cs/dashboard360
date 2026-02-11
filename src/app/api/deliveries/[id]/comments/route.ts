@@ -4,6 +4,19 @@ import { prisma } from "@/lib/db"
 import { CommentType } from "@prisma/client"
 import { notificationService } from "@/services/notification.service"
 
+function normalizeAttachments(
+  raw: unknown
+): { fileName: string; url: string }[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (x): x is { fileName?: string; url?: string } =>
+        x != null && typeof x === "object"
+    )
+    .filter((x) => typeof x.fileName === "string" && typeof x.url === "string")
+    .map((x) => ({ fileName: x.fileName!, url: x.url! }))
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -102,6 +115,7 @@ export async function POST(
     }
 
     const user = session?.user as { id: string }
+    const attachments = normalizeAttachments(body.attachments)
 
     const comment = await prisma.deliveryComment.create({
       data: {
@@ -109,6 +123,7 @@ export async function POST(
         type: commentType,
         deliveryId: id,
         authorId: user.id,
+        attachments,
       },
       include: {
         author: true,

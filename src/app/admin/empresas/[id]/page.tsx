@@ -31,6 +31,7 @@ import {
   FolderOpen,
   HelpCircle,
   MessageSquare,
+  Paperclip,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { calculateNextDate, formatDateShort } from "@/lib/utils";
 import { DELIVERY_TYPE_OPTIONS, DELIVERY_TYPE_VALUES } from "@/lib/delivery-types";
-import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments } from "@/components/company";
+import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments, CompanyFileManager } from "@/components/company";
 import {
   Tooltip,
   TooltipContent,
@@ -759,6 +760,10 @@ export default function EditarEmpresaPage() {
               <FolderOpen className="h-4 w-4" />
               Recursos
             </TabsTrigger>
+            <TabsTrigger value="arquivos" className="gap-2">
+              <Paperclip className="h-4 w-4" />
+              Arquivos
+            </TabsTrigger>
             <TabsTrigger value="diagnostico" className="gap-2">
               <ClipboardList className="h-4 w-4" />
               Diagnóstico
@@ -1191,6 +1196,10 @@ export default function EditarEmpresaPage() {
 
           <TabsContent value="recursos">
             <ResourceManager companyId={id} />
+          </TabsContent>
+
+          <TabsContent value="arquivos">
+            <CompanyFileManager companyId={id} />
           </TabsContent>
 
           <TabsContent value="diagnostico">

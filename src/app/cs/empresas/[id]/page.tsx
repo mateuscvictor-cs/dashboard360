@@ -56,7 +56,7 @@ import { DELIVERY_TYPE_OPTIONS, DELIVERY_TYPE_VALUES } from "@/lib/delivery-type
 import { UpcomingDeliverables } from "@/components/upcoming-deliverables";
 import { DeliveryCompletionDialog, SendNPSButton } from "@/components/cs";
 import { CompanySurveysCard } from "@/components/company-surveys-card";
-import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments } from "@/components/company";
+import { LogoUpload, ResourceManager, DiagnosticManager, CompanyComments, CompanyFileManager } from "@/components/company";
 
 type Contact = {
   id: string;
@@ -836,6 +836,10 @@ export default function CSEmpresaDetalhePage() {
               <ResourceManager companyId={company.id} />
             </div>
           </div>
+        )}
+
+        {company.canEdit && (
+          <CompanyFileManager companyId={company.id} />
         )}
 
         {company.canEdit && (

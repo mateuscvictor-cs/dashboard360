@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   MessageSquare,
   AlertTriangle,
@@ -8,11 +8,21 @@ import {
   XCircle,
   Reply,
   Send,
+  Paperclip,
+  Loader2,
+  X,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { uploadFileToR2 } from "@/lib/upload-to-r2";
+
+interface CommentAttachment {
+  fileName: string;
+  url: string;
+}
 
 interface Comment {
   id: string;
@@ -25,6 +35,7 @@ interface Comment {
     image: string | null;
     role: string;
   };
+  attachments?: CommentAttachment[] | null;
 }
 
 interface DeliveryCommentsProps {
@@ -55,9 +66,34 @@ export function DeliveryComments({
     isClient ? "COMMENT" : "RESPONSE"
   );
   const [loading, setLoading] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadAttachment = async (file: File): Promise<CommentAttachment | null> => {
+    const { readUrl, fileName } = await uploadFileToR2(file, "comment");
+    return { fileName, url: readUrl };
+  };
+
+  const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files;
+    if (!selected?.length) return;
+    setUploadingAttachment(true);
+    try {
+      for (let i = 0; i < selected.length; i++) {
+        const att = await uploadAttachment(selected[i]);
+        if (att) setPendingAttachments((prev) => [...prev, att]);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao anexar");
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() && pendingAttachments.length === 0) return;
 
     setLoading(true);
     try {
@@ -65,13 +101,15 @@ export function DeliveryComments({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: newComment.trim(),
+          content: newComment.trim() || " ",
           type: commentType,
+          attachments: pendingAttachments,
         }),
       });
 
       if (response.ok) {
         setNewComment("");
+        setPendingAttachments([]);
         onRefresh();
       } else {
         const error = await response.json();
@@ -117,7 +155,39 @@ export function DeliveryComments({
             }
             rows={3}
           />
-          <div className="flex items-center justify-between">
+            {!isClient && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  multiple
+                  onChange={handleFileAttach}
+                  disabled={uploadingAttachment}
+                />
+                {pendingAttachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {pendingAttachments.map((att, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs"
+                      >
+                        <span className="truncate max-w-[120px]">{att.fileName}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          aria-label="Remover anexo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isClient ? (
                 <>
@@ -139,22 +209,38 @@ export function DeliveryComments({
                   </Button>
                 </>
               ) : (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled
-                >
-                  <Reply className="h-4 w-4 mr-1" />
-                  Resposta
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled
+                  >
+                    <Reply className="h-4 w-4 mr-1" />
+                    Resposta
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAttachment}
+                    aria-label="Anexar arquivo"
+                  >
+                    {uploadingAttachment ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
+                  </Button>
+                </>
               )}
             </div>
             <Button
               size="sm"
               onClick={handleSubmit}
-              disabled={loading || !newComment.trim()}
+              disabled={loading || (!newComment.trim() && pendingAttachments.length === 0)}
             >
-              <Send className="h-4 w-4 mr-1" />
+              {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
               {loading ? "Enviando..." : "Enviar"}
             </Button>
           </div>
@@ -212,6 +298,30 @@ export function DeliveryComments({
                     <p className="text-sm mt-1 whitespace-pre-wrap">
                       {comment.content}
                     </p>
+                    {Array.isArray(comment.attachments) && comment.attachments.length > 0 && (
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {comment.attachments.map((att, idx) => (
+                          <li key={idx} className="flex items-center gap-1">
+                            <a
+                              href={`/api/storage/download?url=${encodeURIComponent(att.url)}&filename=${encodeURIComponent(att.fileName)}`}
+                              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                            >
+                              <Download className="h-3 w-3" />
+                              {att.fileName}
+                            </a>
+                            <a
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:underline"
+                              aria-label="Abrir em nova aba"
+                            >
+                              Abrir
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </div>

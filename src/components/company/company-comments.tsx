@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageSquare, Send, Loader2, AtSign, Trash2 } from "lucide-react";
+import { MessageSquare, Send, Loader2, AtSign, Trash2, Paperclip, X, Download } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDebounce } from "@/hooks/use-debounce";
+import { uploadFileToR2 } from "@/lib/upload-to-r2";
 
 interface MentionableUser {
   id: string;
@@ -20,12 +21,18 @@ interface CommentMention {
   mentionedUser: { id: string; name: string | null };
 }
 
+interface CommentAttachment {
+  fileName: string;
+  url: string;
+}
+
 interface Comment {
   id: string;
   content: string;
   createdAt: string;
   author: { id: string; name: string | null; image: string | null; role: string };
   mentions: CommentMention[];
+  attachments?: CommentAttachment[] | null;
 }
 
 interface CompanyCommentsProps {
@@ -46,8 +53,11 @@ export function CompanyComments({ companyId }: CompanyCommentsProps) {
   const [mentionLoading, setMentionLoading] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const debouncedQuery = useDebounce(mentionQuery, 300);
 
@@ -156,20 +166,51 @@ export function CompanyComments({ companyId }: CompanyCommentsProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const uploadAttachment = async (file: File): Promise<CommentAttachment | null> => {
+    const { readUrl, fileName } = await uploadFileToR2(file, "comment");
+    return { fileName, url: readUrl };
+  };
+
+  const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files;
+    if (!selected?.length) return;
+    setUploadingAttachment(true);
+    try {
+      for (let i = 0; i < selected.length; i++) {
+        const att = await uploadAttachment(selected[i]);
+        if (att) setPendingAttachments((prev) => [...prev, att]);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao anexar");
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removePendingAttachment = (index: number) => {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     const trimmed = content.trim();
-    if (!trimmed || loading) return;
+    if ((!trimmed && pendingAttachments.length === 0) || loading) return;
 
     setLoading(true);
     try {
       const res = await fetch(`/api/companies/${companyId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: trimmed, mentions: mentionIds }),
+        body: JSON.stringify({
+          content: trimmed || " ",
+          mentions: mentionIds,
+          attachments: pendingAttachments,
+        }),
       });
       if (res.ok) {
         setContent("");
         setMentionIds([]);
+        setPendingAttachments([]);
         fetchComments();
       } else {
         const err = await res.json();
@@ -299,15 +340,59 @@ export function CompanyComments({ companyId }: CompanyCommentsProps) {
             )}
           </div>
         )}
-        <Button
-          size="sm"
-          className="absolute bottom-2 right-2"
-          onClick={handleSubmit}
-          disabled={loading || !content.trim()}
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            multiple
+            onChange={handleFileAttach}
+            disabled={uploadingAttachment}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAttachment}
+            aria-label="Anexar arquivo"
+          >
+            {uploadingAttachment ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Paperclip className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={loading || (!content.trim() && pendingAttachments.length === 0)}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
+      {pendingAttachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {pendingAttachments.map((att, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs"
+            >
+              <span className="truncate max-w-[120px]">{att.fileName}</span>
+              <button
+                type="button"
+                onClick={() => removePendingAttachment(i)}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Remover anexo"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {fetching ? (
         <div className="flex items-center justify-center py-8">
@@ -363,6 +448,30 @@ export function CompanyComments({ companyId }: CompanyCommentsProps) {
                   <p className="mt-1 whitespace-pre-wrap text-sm">
                     {renderContent(comment.content, comment.mentions)}
                   </p>
+                  {Array.isArray(comment.attachments) && comment.attachments.length > 0 && (
+                    <ul className="mt-2 flex flex-wrap gap-2">
+                      {comment.attachments.map((att, idx) => (
+                        <li key={idx} className="flex items-center gap-1">
+                          <a
+                            href={`/api/storage/download?url=${encodeURIComponent(att.url)}&filename=${encodeURIComponent(att.fileName)}`}
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            {att.fileName}
+                          </a>
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-muted-foreground hover:underline"
+                            aria-label="Abrir em nova aba"
+                          >
+                            Abrir
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>

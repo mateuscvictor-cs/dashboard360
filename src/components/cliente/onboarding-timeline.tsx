@@ -144,7 +144,7 @@ export function OnboardingTimeline({ steps, deliveries = [], progress }: Onboard
               <Rocket className="h-6 w-6 text-primary" />
             </motion.div>
             <div>
-              <h3 className="font-semibold">Jornada de Onboarding</h3>
+              <h3 className="font-semibold">Jornada</h3>
               <p className="text-sm text-muted-foreground">
                 Sua jornada será configurada em breve
               </p>
@@ -178,7 +178,7 @@ export function OnboardingTimeline({ steps, deliveries = [], progress }: Onboard
               <Rocket className="h-6 w-6 text-primary-foreground" />
             </motion.div>
             <div>
-              <h3 className="font-semibold text-lg">Jornada de Onboarding</h3>
+              <h3 className="font-semibold text-lg">Jornada</h3>
               <p className="text-sm text-muted-foreground">
                 {progress.completed} de {progress.total} etapas concluídas
               </p>
@@ -310,31 +310,34 @@ export function OnboardingTimeline({ steps, deliveries = [], progress }: Onboard
                         </motion.div>
                       </motion.div>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-[220px] p-3">
+                    <TooltipContent
+                      side="bottom"
+                      className="max-w-[280px] p-3 bg-popover text-popover-foreground border border-border shadow-md"
+                    >
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-primary" />
-                          <p className="font-semibold">{step.title || stepLabels[step.type]}</p>
+                          <Icon className="h-4 w-4 text-primary shrink-0" />
+                          <p className="font-semibold text-foreground">{step.title || stepLabels[step.type]}</p>
                         </div>
                         {step.description && (
                           <p className="text-xs text-muted-foreground">{step.description}</p>
                         )}
-                        <div className="pt-1 border-t">
+                        <div className="pt-1 border-t border-border">
                           {isCompleted && step.completedAt && (
                             <p className="text-xs text-success flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3" />
+                              <CheckCircle2 className="h-3 w-3 shrink-0" />
                               Concluído em {new Date(step.completedAt).toLocaleDateString("pt-BR")}
                             </p>
                           )}
                           {isInProgress && (
                             <p className="text-xs text-info flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="h-3 w-3 shrink-0" />
                               Em andamento
                             </p>
                           )}
                           {step.dueDate && !isCompleted && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="h-3 w-3 shrink-0" />
                               Prazo: {new Date(step.dueDate).toLocaleDateString("pt-BR")}
                             </p>
                           )}
@@ -390,8 +393,8 @@ export function OnboardingTimeline({ steps, deliveries = [], progress }: Onboard
                       </motion.div>
                     </motion.div>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p className="font-semibold">Entregas em andamento</p>
+                  <TooltipContent side="bottom" className="bg-popover text-popover-foreground border border-border shadow-md">
+                    <p className="font-semibold text-foreground">Entregas em andamento</p>
                     <p className="text-xs text-muted-foreground">{activeDeliveries.length} entregas ativas</p>
                   </TooltipContent>
                 </Tooltip>

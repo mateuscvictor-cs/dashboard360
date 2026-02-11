@@ -328,6 +328,7 @@ model User {
   companyComments       CompanyComment[]
   demandComments        DemandComment[]
   companyCommentMentions CompanyCommentMention[]  @relation("MentionedUser")
+  uploadedCompanyFiles   CompanyFile[]
   receivedNotifications Notification[]    @relation("NotificationRecipient")
   sentNotifications     Notification[]    @relation("NotificationSender")
   sentDiagnostics       DiagnosticForm[]  @relation("SentDiagnostics")
@@ -513,14 +514,35 @@ model Company {
   diagnosticForms  DiagnosticForm[]
   meetingRecords   MeetingRecord[]
   companyComments  CompanyComment[]
+  companyFiles     CompanyFile[]
 
   @@map("companies")
 }
 
+model CompanyFile {
+  id           String   @id @default(cuid())
+  name         String
+  key          String
+  url          String
+  size         Int?
+  mimeType     String?
+  createdAt    DateTime @default(now())
+
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId    String
+
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
+  uploadedById String?
+
+  @@index([companyId])
+  @@map("company_files")
+}
+
 model CompanyComment {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  attachments Json?    @default("[]")
+  createdAt   DateTime @default(now())
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
@@ -785,9 +807,10 @@ model Demand {
 }
 
 model DemandComment {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  attachments Json?    @default("[]")
+  createdAt   DateTime @default(now())
 
   demand   Demand @relation(fields: [demandId], references: [id], onDelete: Cascade)
   demandId String
@@ -1162,10 +1185,11 @@ model DeliveryDependency {
 }
 
 model DeliveryComment {
-  id        String      @id @default(cuid())
-  content   String
-  type      CommentType @default(COMMENT)
-  createdAt DateTime    @default(now())
+  id          String      @id @default(cuid())
+  content     String
+  type        CommentType @default(COMMENT)
+  attachments Json?       @default("[]")
+  createdAt   DateTime    @default(now())
 
   delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   deliveryId String
