@@ -123,6 +123,7 @@ interface TimelineEvent {
   description: string | null;
   date: string;
   sentiment: string | null;
+  metadata?: { source?: string };
 }
 
 interface AIInsight {
@@ -445,7 +446,12 @@ export default function CSContaPage() {
                                 <Icon className="h-4 w-4 text-white" />
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium text-sm">{event.title}</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-medium text-sm">{event.title}</p>
+                                  {event.metadata?.source === "ai_assistant" && (
+                                    <Badge variant="secondary" className="text-xs">IA</Badge>
+                                  )}
+                                </div>
                                 {event.description && <p className="text-sm text-muted-foreground">{event.description}</p>}
                                 <p className="text-xs text-muted-foreground mt-1">{formatDate(event.date)}</p>
                               </div>

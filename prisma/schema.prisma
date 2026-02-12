@@ -659,6 +659,7 @@ model TimelineEvent {
   date         DateTime
   sentiment    Sentiment?
   participants String[]          @default([])
+  metadata     Json?
   createdAt    DateTime          @default(now())
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

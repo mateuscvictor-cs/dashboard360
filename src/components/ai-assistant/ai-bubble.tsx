@@ -14,11 +14,17 @@ type Message = {
   success?: boolean;
 };
 
+type ConversationContext = {
+  previousAction: { action: string; params: Record<string, unknown> };
+  previousMessage: string;
+};
+
 export function AIBubble() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationContext, setConversationContext] = useState<ConversationContext | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,14 +45,29 @@ export function AIBubble() {
     setInput("");
     setLoading(true);
 
+    const body: { message: string; conversationContext?: ConversationContext } = { message: text };
+    if (conversationContext) {
+      body.conversationContext = conversationContext;
+    }
+
     try {
       const res = await fetch("/api/ai-assistant/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
+
+      if (data.success || !data.needsConfirmation) {
+        setConversationContext(null);
+      }
+      if (data.needsConfirmation && data.parsedAction?.action && data.parsedAction.action !== "unknown") {
+        setConversationContext({
+          previousAction: data.parsedAction,
+          previousMessage: text,
+        });
+      }
 
       const assistantMsg: Message = {
         id: crypto.randomUUID(),

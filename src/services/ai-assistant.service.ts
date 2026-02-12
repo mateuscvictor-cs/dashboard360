@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/db";
 import { demandService } from "./demand.service";
 import { activityService } from "./activity.service";
-import type { DemandType, PendingType, Priority } from "@prisma/client";
+import type { DemandType, PendingType, Priority, Cadence, DeliveryType } from "@prisma/client";
 
 function getOpenAIClient() {
   const apiKey = process.env.OPENAI_APIKEY || process.env.OPENAI_API_KEY;
@@ -17,6 +17,7 @@ export type AIAssistantAction =
   | "create_deliveries"
   | "create_pendings"
   | "create_companies"
+  | "ask_user_choice"
   | "unknown";
 
 export type ParsedAction = {
@@ -62,16 +63,21 @@ export async function loadContext(userId: string, role: string, csOwnerId: strin
 
 const SYSTEM_PROMPT = `Você é um assistente que interpreta comandos em português e retorna ações estruturadas em JSON.
 Ações disponíveis:
-- create_demands: criar demandas/tarefas. params: { items: [{ title, description?, priority?, dueDate? }], companyId, assignedToId }
-- create_deliveries: criar entregas. params: { items: [{ title, description?, dueDate? }], companyId }
+- create_demands: criar demandas/tarefas. params: { items: [{ title, description?, priority?, dueDate?, type? }], companyId, assignedToId }
+- create_deliveries: criar entregas. params: { items: [{ title, description?, dueDate?, type?, impact?, cadence?, assignee? }], companyId }
 - create_pendings: criar pendências. params: { items: [{ title, dueDate, type?, priority? }], csOwnerId, companyId? }
-- create_companies: cadastrar empresas. params: { items: [{ name, segment?, plan?, csOwnerId? }] }
+- create_companies: cadastrar empresas. params: { items: [{ name, segment?, plan?, csOwnerId?, framework?, tags? }] }
+- ask_user_choice: quando o usuário quer criar algo mas com poucos dados, pergunte. params: { message: "Identifiquei que você quer criar X. Prefere: 1) Criar com os dados informados ou 2) Adicionar mais detalhes (descrição, CS, tipo, prazo, etc.)? Responda 1 ou 2.", parsedAction: {...} }
 
 Prioridades: URGENT, HIGH, MEDIUM, LOW
 Tipos de demanda: SUPPORT, ESCALATION, REQUEST, INTERNAL
 Tipos de pending: FOLLOWUP, CHECKLIST, DELIVERY, NUTRITION
+Tipos de entrega: AUTOMATION, IPC, MEETING, WORKSHOP, HOTSEAT, OTHER
+Cadência: DAILY, WEEKLY, BIWEEKLY, MONTHLY, CUSTOM
 Datas: formato ISO ou "YYYY-MM-DD"
+assignee: nome do CS responsável (será mapeado para id)
 
+Use ask_user_choice quando o pedido for vago ou tiver poucos detalhes. Caso contrário, retorne a ação direta.
 Responda APENAS com um objeto JSON: {"action": "nome_da_acao", "params": {...}}
 Se não reconhecer o comando, retorne {"action": "unknown", "params": {}}`;
 
@@ -124,6 +130,7 @@ export async function parseAction(
       "create_deliveries",
       "create_pendings",
       "create_companies",
+      "ask_user_choice",
       "unknown",
     ];
     return {
@@ -161,6 +168,39 @@ function toPendingType(val: unknown): PendingType {
   return "FOLLOWUP";
 }
 
+function toDeliveryType(val: unknown): DeliveryType | undefined {
+  const s = String(val || "").toUpperCase();
+  if (["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"].includes(s)) return s as DeliveryType;
+  return undefined;
+}
+
+function toCadence(val: unknown): Cadence | undefined {
+  const s = String(val || "").toUpperCase();
+  if (["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "CUSTOM"].includes(s)) return s as Cadence;
+  return undefined;
+}
+
+const AI_METADATA = { source: "ai_assistant" };
+
+async function createTimelineEvent(
+  companyId: string,
+  entityType: "demand" | "delivery" | "pending",
+  entityId: string,
+  title: string,
+  description?: string
+) {
+  await prisma.timelineEvent.create({
+    data: {
+      companyId,
+      type: "MILESTONE",
+      title,
+      description: description || undefined,
+      date: new Date(),
+      metadata: { ...AI_METADATA, entityType, entityId },
+    },
+  });
+}
+
 function ensureCompanyAccess(
   companyId: string | undefined,
   context: AIAssistantContext
@@ -175,6 +215,8 @@ export type ExecuteResult = {
   message: string;
   results?: unknown[];
   error?: string;
+  needsConfirmation?: boolean;
+  parsedAction?: ParsedAction;
 };
 
 export async function executeAction(
@@ -185,6 +227,17 @@ export async function executeAction(
     return {
       success: false,
       message: "Não entendi o comando. Tente ser mais específico, por exemplo: 'Crie 3 tarefas para Empresa X com prazo 20/02'.",
+    };
+  }
+
+  if (parsed.action === "ask_user_choice") {
+    const msg = (parsed.params.message as string) || "Prefere criar com os dados informados (1) ou adicionar mais detalhes (2)?";
+    const stored = parsed.params.parsedAction as ParsedAction | undefined;
+    return {
+      success: false,
+      needsConfirmation: true,
+      message: msg,
+      parsedAction: stored && stored.action !== "unknown" ? stored : undefined,
     };
   }
 
@@ -225,6 +278,15 @@ export async function executeAction(
           createdBy: context.userId,
         });
         created.push(demand);
+        if (companyId) {
+          await createTimelineEvent(
+            companyId,
+            "demand",
+            demand.id,
+            "Demanda criada por IA",
+            demand.title
+          );
+        }
       }
 
       const companyName = companyId
@@ -251,21 +313,33 @@ export async function executeAction(
         };
       }
 
+      const validTypes = ["AUTOMATION", "IPC", "MEETING", "WORKSHOP", "HOTSEAT", "OTHER"];
       const created = [];
       for (const item of items) {
         const title = String(item.title || "").trim();
         if (!title) continue;
-
+        const typeVal = toDeliveryType(item.type);
         const delivery = await prisma.delivery.create({
           data: {
             title: title.slice(0, 200),
             description: item.description ? String(item.description).slice(0, 2000) : undefined,
+            type: typeVal && validTypes.includes(typeVal) ? typeVal : undefined,
+            impact: toPriority(item.impact),
+            cadence: toCadence(item.cadence) || undefined,
+            assignee: item.assignee ? String(item.assignee).slice(0, 100) : undefined,
             dueDate: parseDate(item.dueDate),
             companyId,
             status: "PENDING",
           },
         });
         created.push(delivery);
+        await createTimelineEvent(
+          companyId,
+          "delivery",
+          delivery.id,
+          "Entrega criada por IA",
+          delivery.title
+        );
       }
 
       const companyName = context.companies.find((c) => c.id === companyId)?.name || "a empresa";
@@ -307,6 +381,15 @@ export async function executeAction(
           priority: toPriority(item.priority),
         });
         created.push(pending);
+        if (companyId) {
+          await createTimelineEvent(
+            companyId,
+            "pending",
+            pending.id,
+            "Pendência criada por IA",
+            pending.title
+          );
+        }
       }
 
       return {
@@ -334,11 +417,18 @@ export async function executeAction(
           };
         }
 
+        const tags = Array.isArray(item.tags)
+          ? item.tags.map((t: unknown) => String(t).slice(0, 50)).slice(0, 10)
+          : item.tags
+            ? [String(item.tags).slice(0, 50)]
+            : undefined;
         const company = await prisma.company.create({
           data: {
             name: name.slice(0, 200),
             segment: item.segment ? String(item.segment).slice(0, 100) : undefined,
             plan: item.plan ? String(item.plan).slice(0, 100) : undefined,
+            framework: item.framework ? String(item.framework).slice(0, 100) : undefined,
+            tags: tags || [],
             csOwnerId: csOwnerId || undefined,
             onboardingStatus: "NOVO",
           },
@@ -360,10 +450,21 @@ export async function executeAction(
   }
 }
 
+const CONFIRM_PATTERNS = /^(1|sim|s|sim\s*criar|criar|ok|confirmo|confirmar|pode\s*criar)$/i;
+
+export type ConversationContext = {
+  previousAction: ParsedAction;
+  previousMessage: string;
+};
+
 export async function processMessage(
   message: string,
-  context: AIAssistantContext
+  context: AIAssistantContext,
+  conversationContext?: ConversationContext
 ): Promise<ExecuteResult> {
+  if (conversationContext?.previousAction && CONFIRM_PATTERNS.test(message.trim())) {
+    return executeAction(conversationContext.previousAction, context);
+  }
   const parsed = await parseAction(message, context);
   return executeAction(parsed, context);
 }

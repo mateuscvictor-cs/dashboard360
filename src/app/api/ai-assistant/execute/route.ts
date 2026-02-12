@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import {
   loadContext,
   processMessage,
+  type ConversationContext,
 } from "@/services/ai-assistant.service";
 
 export async function POST(request: NextRequest) {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
     const session = await requireRole(["ADMIN", "CS_OWNER"]);
     const body = await request.json();
     const message = typeof body.message === "string" ? body.message.trim() : "";
+    const conversationContext = body.conversationContext as ConversationContext | undefined;
 
     if (!message) {
       return NextResponse.json(
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const context = await loadContext(user.id, role, csOwnerId);
 
-    const result = await processMessage(message, context);
+    const result = await processMessage(message, context, conversationContext);
 
     return NextResponse.json(result);
   } catch (error) {
