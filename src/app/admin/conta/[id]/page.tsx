@@ -301,7 +301,7 @@ export default function AccountPage() {
     ...company.workshops.filter(w => w.date != null).map(w => ({
       type: "workshop" as const,
       title: w.title,
-      date: w.date as Date,
+      date: w.date!,
       cadence: w.cadence,
       status: "SCHEDULED",
     })),
