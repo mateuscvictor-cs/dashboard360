@@ -87,6 +87,7 @@ export async function GET(request: Request) {
       }
 
       for (const workshop of company.workshops) {
+        if (!workshop.date) continue;
         upcomingDeliverables.push({
           id: workshop.id,
           type: "workshop",

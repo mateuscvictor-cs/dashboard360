@@ -298,10 +298,10 @@ export default function AccountPage() {
       cadence: d.cadence,
       status: d.status,
     })),
-    ...company.workshops.map(w => ({
+    ...company.workshops.filter(w => w.date != null).map(w => ({
       type: "workshop" as const,
       title: w.title,
-      date: w.date,
+      date: w.date as Date,
       cadence: w.cadence,
       status: "SCHEDULED",
     })),
@@ -615,7 +615,7 @@ export default function AccountPage() {
                     ) : (
                       <div className="space-y-3">
                         {company.workshops.map((w) => {
-                          const nextDate = w.cadence ? calculateNextDate(w.date, w.cadence) : null;
+                          const nextDate = w.date && w.cadence ? calculateNextDate(w.date, w.cadence) : null;
                           return (
                             <div key={w.id} className="p-3 rounded-lg border">
                               <div className="flex items-start justify-between">
@@ -624,7 +624,7 @@ export default function AccountPage() {
                                   <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="h-3 w-3" />
-                                      {formatDateShort(w.date)}
+                                      {w.date ? formatDateShort(w.date) : "Sem data"}
                                     </span>
                                     {w.cadence && (
                                       <Badge variant="secondary" className="text-xs">

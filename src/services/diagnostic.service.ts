@@ -482,4 +482,10 @@ export const diagnosticService = {
       where: { id },
     });
   },
+
+  async deleteResponse(responseId: string): Promise<void> {
+    await prisma.diagnosticResponse.delete({
+      where: { id: responseId },
+    });
+  },
 };

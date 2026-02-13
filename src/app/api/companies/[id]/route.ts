@@ -128,8 +128,8 @@ export async function PATCH(
     if (cashIn !== undefined) data.cashIn = cashIn;
     const mrr = parseNum(body.mrr);
     if (mrr !== undefined) data.mrr = mrr;
-    if (body.contractStart) data.contractStart = new Date(body.contractStart);
-    if (body.contractEnd) data.contractEnd = new Date(body.contractEnd);
+    if (body.contractStart !== undefined) data.contractStart = body.contractStart ? new Date(body.contractStart) : null;
+    if (body.contractEnd !== undefined) data.contractEnd = body.contractEnd ? new Date(body.contractEnd) : null;
     if (body.projectStatus === null || body.projectStatus === "") {
       data.projectStatus = null;
     } else if (body.projectStatus !== undefined && ["IN_PROGRESS", "PAUSED", "CONCLUDED"].includes(body.projectStatus)) {

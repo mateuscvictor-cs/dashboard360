@@ -39,6 +39,7 @@ import {
   ChevronUp,
   Target,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { DiagnosticResponseView } from "./DiagnosticResponseView";
@@ -213,9 +214,10 @@ const CustomPieTooltip = ({ active, payload }: { active?: boolean; payload?: Arr
 interface DiagnosticAnalyticsProps {
   diagnosticId: string;
   backUrl: string;
+  canDeleteResponses?: boolean;
 }
 
-export function DiagnosticAnalytics({ diagnosticId, backUrl }: DiagnosticAnalyticsProps) {
+export function DiagnosticAnalytics({ diagnosticId, backUrl, canDeleteResponses = false }: DiagnosticAnalyticsProps) {
   const [stats, setStats] = useState<DiagnosticStats | null>(null);
   const [responses, setResponses] = useState<DiagnosticResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,6 +226,7 @@ export function DiagnosticAnalytics({ diagnosticId, backUrl }: DiagnosticAnalyti
   const [expandedIPC, setExpandedIPC] = useState<number | null>(null);
   const [expandedAutomation, setExpandedAutomation] = useState<number | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -286,6 +289,23 @@ export function DiagnosticAnalytics({ diagnosticId, backUrl }: DiagnosticAnalyti
       setTimeout(() => setCopiedPrompt(false), 2000);
     } catch (error) {
       console.error("Error copying prompt:", error);
+    }
+  };
+
+  const handleDeleteResponse = async (e: React.MouseEvent, responseId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Excluir esta resposta do diagnóstico? Esta ação não pode ser desfeita.")) return;
+    setDeletingResponseId(responseId);
+    try {
+      const res = await fetch(`/api/diagnostics/${diagnosticId}/responses/${responseId}`, { method: "DELETE" });
+      if (res.ok) {
+        if (selectedResponse?.id === responseId) setSelectedResponse(null);
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error deleting response:", error);
+    } finally {
+      setDeletingResponseId(null);
     }
   };
 
@@ -736,6 +756,22 @@ export function DiagnosticAnalytics({ diagnosticId, backUrl }: DiagnosticAnalyti
                             )}
                           </div>
                           <Badge variant="outline">{response.timeInCompany}</Badge>
+                          {canDeleteResponses && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => handleDeleteResponse(e, response.id)}
+                              disabled={deletingResponseId === response.id}
+                              aria-label="Excluir resposta"
+                            >
+                              {deletingResponseId === response.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>

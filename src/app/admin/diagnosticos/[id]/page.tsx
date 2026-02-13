@@ -12,7 +12,7 @@ export default function AdminDiagnosticDetailPage({
 
   return (
     <div className="p-6">
-      <DiagnosticAnalytics diagnosticId={id} backUrl="/admin/empresas" />
+      <DiagnosticAnalytics diagnosticId={id} backUrl="/admin/empresas" canDeleteResponses />
     </div>
   );
 }

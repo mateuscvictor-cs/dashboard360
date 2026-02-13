@@ -413,6 +413,8 @@ export default function EditarEmpresaPage() {
           csOwnerId: formData.csOwnerId || undefined,
           squadId: formData.squadId || undefined,
           projectStatus: formData.projectStatus ? formData.projectStatus : null,
+          contractStart: formData.startDate || null,
+          contractEnd: formData.expectedCompletion || null,
         }),
       });
 
@@ -496,21 +498,21 @@ export default function EditarEmpresaPage() {
             body: JSON.stringify({
               title: w.title,
               description: w.description || null,
-              date: w.scheduledDate || new Date().toISOString().split("T")[0],
+              date: w.scheduledDate || null,
               duration: w.duration ? parseInt(w.duration, 10) : null,
               participants: w.participants ? parseInt(w.participants, 10) : 0,
               cadence,
             }),
           });
           if (!res.ok) throw new Error("Erro ao atualizar workshop");
-        } else if (!w.id && w.title.trim() && w.scheduledDate) {
+        } else if (!w.id && w.title.trim()) {
           const res = await fetch(`/api/companies/${id}/workshops`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: w.title.trim(),
               description: w.description || null,
-              date: w.scheduledDate,
+              date: w.scheduledDate || null,
               duration: w.duration ? parseInt(w.duration, 10) : null,
               participants: w.participants ? parseInt(w.participants, 10) : 0,
               cadence,
@@ -828,6 +830,24 @@ export default function EditarEmpresaPage() {
                           <SelectItem value="CONCLUDED">Projeto concluído</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Início do contrato</label>
+                        <Input
+                          type="date"
+                          value={formData.startDate}
+                          onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Fim do contrato</label>
+                        <Input
+                          type="date"
+                          value={formData.expectedCompletion}
+                          onChange={(e) => setFormData({ ...formData, expectedCompletion: e.target.value })}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

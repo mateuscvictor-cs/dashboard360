@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { requireCompanyAccess } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 
@@ -39,14 +40,25 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const session = await auth();
     await requireCompanyAccess(id);
     const body = await request.json();
+
+    const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
+    const dateValue = body.date != null && body.date !== "" ? new Date(body.date) : null;
+
+    if (!dateValue && !isAdmin) {
+      return NextResponse.json(
+        { error: "Data é obrigatória" },
+        { status: 400 }
+      );
+    }
 
     const workshop = await prisma.workshop.create({
       data: {
         title: body.title,
         description: body.description,
-        date: new Date(body.date),
+        date: dateValue,
         duration: body.duration ? parseInt(body.duration) : null,
         participants: body.participants || 0,
         locationType: body.locationType || "ONLINE",
@@ -59,15 +71,17 @@ export async function POST(
       },
     });
 
-    await prisma.timelineEvent.create({
-      data: {
-        type: "MEETING",
-        title: `Workshop agendado: ${body.title}`,
-        description: body.description,
-        date: new Date(body.date),
-        companyId: id,
-      },
-    });
+    if (dateValue) {
+      await prisma.timelineEvent.create({
+        data: {
+          type: "MEETING",
+          title: `Workshop agendado: ${body.title}`,
+          description: body.description,
+          date: dateValue,
+          companyId: id,
+        },
+      });
+    }
 
     return NextResponse.json(workshop, { status: 201 });
   } catch (error) {

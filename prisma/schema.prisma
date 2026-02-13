@@ -580,7 +580,7 @@ model Workshop {
   id            String            @id @default(cuid())
   title         String
   description   String?
-  date          DateTime
+  date          DateTime?
   duration      Int?
   participants  Int               @default(0)
   locationType  EventLocationType @default(ONLINE)
