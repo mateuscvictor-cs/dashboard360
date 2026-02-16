@@ -108,7 +108,7 @@ export default function ClienteAgendaPage() {
     <div className="flex flex-col h-full">
       <ClienteHeader title="Agenda" subtitle="Suas reuniões com o CS" />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         {company?.csOwner && (
           <Card className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20">
             <CardContent className="p-6">

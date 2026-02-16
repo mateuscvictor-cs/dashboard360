@@ -126,7 +126,7 @@ export default function RecursosPage() {
     <div className="flex flex-col h-full">
       <ClienteHeader title="Recursos" subtitle="Automações, IPCs e links úteis" />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         {totalResources === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">

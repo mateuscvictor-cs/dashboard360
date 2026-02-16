@@ -213,7 +213,7 @@ export default function EntregasPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         {needsAction.length > 0 && (
           <Card className="mb-6 border-yellow-500/30 bg-yellow-500/5">
             <CardContent className="p-4">

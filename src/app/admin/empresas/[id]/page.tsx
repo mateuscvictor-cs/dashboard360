@@ -799,7 +799,7 @@ export default function EditarEmpresaPage() {
                         placeholder="Nome da empresa"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">Segmento</label>
                         <Select value={formData.segment} onValueChange={(v) => setFormData({ ...formData, segment: v })}>
@@ -831,7 +831,7 @@ export default function EditarEmpresaPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">Início do contrato</label>
                         <Input
@@ -860,7 +860,7 @@ export default function EditarEmpresaPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">Valor Faturado</label>
                         <Input
@@ -911,7 +911,7 @@ export default function EditarEmpresaPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">CS Owner</label>
                         <Select value={formData.csOwnerId} onValueChange={(v) => setFormData({ ...formData, csOwnerId: v })}>
@@ -1062,7 +1062,7 @@ export default function EditarEmpresaPage() {
                         </div>
                       )}
                     </div>
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <Input type="date" value={delivery.dueDate} onChange={(e) => updateDelivery(index, "dueDate", e.target.value)} />
                       <Select value={delivery.impact} onValueChange={(v) => updateDelivery(index, "impact", v)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>

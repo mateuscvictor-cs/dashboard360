@@ -91,7 +91,7 @@ export default function CSSquadsPage() {
     <div className="flex flex-col h-full">
       <Header title="Squads" subtitle="Visualização das equipes" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="relative w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -108,7 +108,7 @@ export default function CSSquadsPage() {
           </Badge>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-3xl font-bold">{squads.length}</p>
@@ -188,7 +188,7 @@ export default function CSSquadsPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         <div>
@@ -273,7 +273,7 @@ export default function CSSquadsPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div className="text-center p-3 rounded-lg bg-muted/50">
                 <p className="text-2xl font-bold">{selectedSquad?.members.length}</p>
                 <p className="text-xs text-muted-foreground">Membros</p>

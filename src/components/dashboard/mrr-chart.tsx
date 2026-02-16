@@ -158,7 +158,7 @@ export function MRRChart({ data, currentMRR }: MRRChartProps) {
           </ResponsiveContainer>
         </div>
         
-        <div className="mt-4 pt-3 border-t grid grid-cols-3 gap-2">
+        <div className="mt-4 pt-3 border-t grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
             <p className="text-[10px] text-muted-foreground font-medium">Média</p>
             <p className="text-sm font-bold">{formatCurrency(avgMRR)}</p>

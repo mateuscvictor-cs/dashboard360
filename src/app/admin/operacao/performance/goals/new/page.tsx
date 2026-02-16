@@ -150,7 +150,7 @@ export default function NewGoalPage() {
     <div className="flex flex-col h-full">
       <Header title="Nova Meta" subtitle="Defina uma meta de performance" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <Link href="/admin/operacao/performance" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-4 w-4" />
           Voltar para Performance

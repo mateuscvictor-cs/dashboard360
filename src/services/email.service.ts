@@ -38,6 +38,7 @@ function getInviteContent(
       <div style="padding: 32px; background: #ffffff;">
         <h2 style="color: #1f2937; margin-bottom: 16px;">Você foi convidado!</h2>
         ${type === "COMPANY_ADMIN" && companyName ? `<p style="color: #4b5563;">Você foi convidado para acessar o painel da empresa <strong>${companyName}</strong>.</p>` : ""}
+        ${type === "COMPANY_MEMBER" && companyName ? `<p style="color: #4b5563;">Você foi convidado para participar da empresa <strong>${companyName}</strong> no Vanguardia 360. Acesso apenas à área de membro.</p>` : ""}
         ${type === "MEMBER_ADMIN" ? `<p style="color: #4b5563;">Você foi convidado para fazer parte da equipe administrativa do Vanguardia 360.</p>` : ""}
         ${type === "MEMBER_CS" ? `<p style="color: #4b5563;">Você foi convidado para fazer parte da equipe de Customer Success do Vanguardia 360.</p>` : ""}
         <p style="color: #4b5563;">Clique no botão abaixo para criar sua conta e começar a usar a plataforma.</p>

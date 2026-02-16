@@ -47,7 +47,7 @@ export const ROLE_PERMISSIONS = {
     canInviteMembers: true,
   },
   CLIENT_MEMBER: {
-    routes: ["/cliente/recursos", "/cliente/agenda", "/cliente/pesquisas", "/cliente/notificacoes", "/cliente/configuracoes", "/cliente/diagnostico"],
+    routes: ["/membro"],
     canViewAllData: false,
     canManageUsers: false,
     canManageTemplates: false,
@@ -55,14 +55,7 @@ export const ROLE_PERMISSIONS = {
   },
 } as const;
 
-export const CLIENT_MEMBER_ALLOWED_ROUTES = [
-  "/cliente/recursos",
-  "/cliente/agenda",
-  "/cliente/pesquisas",
-  "/cliente/notificacoes",
-  "/cliente/configuracoes",
-  "/cliente/diagnostico",
-];
+export const CLIENT_MEMBER_ALLOWED_ROUTES = ["/membro"];
 
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
   const permissions = ROLE_PERMISSIONS[role];
@@ -83,7 +76,7 @@ export function canAccessRoute(role: UserRole, pathname: string): boolean {
 
   if (role === "CLIENT_MEMBER") {
     if (pathname === "/") return true;
-    return CLIENT_MEMBER_ALLOWED_ROUTES.some(route => pathname.startsWith(route));
+    return pathname.startsWith("/membro");
   }
 
   return false;
@@ -98,7 +91,7 @@ export function getDefaultRedirect(role: UserRole): string {
     case "CLIENT":
       return "/cliente/dashboard";
     case "CLIENT_MEMBER":
-      return "/cliente/recursos";
+      return "/membro";
     default:
       return "/";
   }

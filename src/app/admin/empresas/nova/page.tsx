@@ -743,7 +743,7 @@ function NovaEmpresaContent() {
           onStepChange={handleTourStepChange}
           onComplete={handleTourClose}
         />
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-4 mb-8">
               <Link href="/admin/empresas">
@@ -865,7 +865,7 @@ function NovaEmpresaContent() {
     return (
       <div className="flex flex-col h-full">
         <Header title="Nova Empresa" subtitle="Cadastro rápido: nome e CS Owner" showFilters={false} />
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-4 mb-6">
               <Button
@@ -936,8 +936,8 @@ Empresa C"
                           ))}
                         </select>
                       </div>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full min-w-[320px] text-sm">
                           <thead>
                             <tr className="border-b bg-muted/50">
                               <th className="text-left p-3 font-medium">Nome</th>
@@ -1000,7 +1000,7 @@ Empresa C"
     return (
       <div className="flex flex-col h-full">
         <Header title="Nova Empresa" subtitle="Importar empresas em massa via CSV" showFilters={false} />
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="max-w-2xl mx-auto">
             <div className="flex items-center gap-4 mb-8">
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => { setImportMode(null); setCsvFile(null); setCsvImportResult(null); }}>
@@ -1151,7 +1151,7 @@ Empresa C"
       <div className="flex flex-col h-full">
         <Header title="Importar do Contrato" subtitle="Faça upload do contrato para extração automática" showFilters={false} />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="max-w-2xl mx-auto">
             <div className="flex items-center gap-4 mb-8">
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setImportMode(null)}>
@@ -2226,7 +2226,7 @@ Empresa C"
         onStepChange={handleTourStepChange}
         onComplete={handleTourClose}
       />
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {

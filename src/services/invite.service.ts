@@ -90,10 +90,6 @@ export const inviteService = {
       return { allowed: false, reason: "Empresa não encontrada" };
     }
 
-    if (company.memberInviteLimit <= 0) {
-      return { allowed: false, reason: "Empresa não possui limite de convites configurado", remaining: 0 };
-    }
-
     const currentMembers = await prisma.user.count({
       where: {
         companyId,
@@ -109,14 +105,15 @@ export const inviteService = {
       },
     });
 
+    const limit = company.memberInviteLimit ?? 0;
     const totalUsed = currentMembers + pendingInvites;
-    const remaining = company.memberInviteLimit - totalUsed;
+    const remaining = limit <= 0 ? 999 : Math.max(0, limit - totalUsed);
 
-    if (remaining <= 0) {
-      return { 
-        allowed: false, 
-        reason: `Limite de ${company.memberInviteLimit} membros atingido`,
-        remaining: 0
+    if (limit > 0 && remaining <= 0) {
+      return {
+        allowed: false,
+        reason: `Limite de ${limit} membros atingido`,
+        remaining: 0,
       };
     }
 
@@ -149,10 +146,10 @@ export const inviteService = {
       },
     });
 
-    const limit = company?.memberInviteLimit || 0;
+    const limit = company?.memberInviteLimit ?? 0;
     const used = currentMembers;
     const pending = pendingInvites;
-    const remaining = Math.max(0, limit - used - pending);
+    const remaining = limit <= 0 ? 999 : Math.max(0, limit - used - pending);
 
     return { limit, used, pending, remaining };
   },

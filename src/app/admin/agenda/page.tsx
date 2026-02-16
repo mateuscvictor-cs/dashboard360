@@ -635,7 +635,7 @@ function NewBookingDialog({
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-32 overflow-y-auto">
                     {slotsForDate.map((slot) => {
                       const time = new Date(slot.time).toLocaleTimeString("pt-BR", {
                         hour: "2-digit",
@@ -676,7 +676,7 @@ function NewBookingDialog({
 
         {step === 4 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium mb-2 block">Nome do Participante</label>
                 <Input
@@ -849,7 +849,7 @@ export default function AdminAgendaPage() {
     <div className="flex flex-col h-full">
       <Header title="Agenda" subtitle="Visão geral de todas as reuniões" />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">

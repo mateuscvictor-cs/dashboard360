@@ -267,7 +267,7 @@ export default function CSOnboardingPage() {
         showFilters={false}
       />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <Link href={`/cs/empresas/${companyId}`}>
             <Button variant="ghost" className="gap-2">

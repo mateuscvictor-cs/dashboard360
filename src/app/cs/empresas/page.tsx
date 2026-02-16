@@ -100,7 +100,7 @@ export default function CSEmpresasPage() {
     <div className="flex flex-col h-full">
       <Header title="Minhas Empresas" subtitle="Empresas sob sua responsabilidade" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex gap-1 p-1 rounded-lg bg-muted">
             <Button

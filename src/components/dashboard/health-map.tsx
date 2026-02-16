@@ -63,7 +63,7 @@ export function HealthMap({ data }: HealthMapProps) {
           })}
         </div>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {healthCategories.map((cat) => {
             const value = data[cat.key as keyof PortfolioHealth] as number;
             const percentage = Math.round((value / data.total) * 100);

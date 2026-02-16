@@ -6,7 +6,7 @@ import { CheckCircle2, ArrowRight, Building2, Shield, Headphones, Loader2, User 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type InviteType = "COMPANY_ADMIN" | "MEMBER_ADMIN" | "MEMBER_CS";
+type InviteType = "COMPANY_ADMIN" | "COMPANY_MEMBER" | "MEMBER_ADMIN" | "MEMBER_CS";
 
 interface CompleteStepProps {
   type: InviteType;
@@ -45,6 +45,14 @@ const completionContent = {
     subtitle: "Sua conta está pronta",
     redirectLabel: "Acessar minha área",
     description: "Você já pode acessar sua área para gerenciar sua carteira de clientes.",
+  },
+  COMPANY_MEMBER: {
+    icon: User,
+    gradient: "from-violet-500 to-purple-500",
+    title: "Bem-vindo!",
+    subtitle: "Sua conta foi criada",
+    redirectLabel: "Acessar minha área",
+    description: "Você já pode acessar a área de membro da empresa.",
   },
 };
 
@@ -184,7 +192,7 @@ export function CompleteStep({
               <div className="flex items-center gap-2">
                 <Icon className="h-4 w-4 text-primary" />
                 <span className="font-medium">
-                  {type === "COMPANY_ADMIN" ? "Cliente" : type === "MEMBER_ADMIN" ? "Admin" : "CS Owner"}
+                  {type === "COMPANY_ADMIN" ? "Cliente" : type === "COMPANY_MEMBER" ? "Membro" : type === "MEMBER_ADMIN" ? "Admin" : "CS Owner"}
                 </span>
               </div>
             </div>

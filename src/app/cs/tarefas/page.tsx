@@ -167,7 +167,7 @@ export default function CSTarefasPage() {
     <div className="flex flex-col h-full">
       <Header title="Minhas Tarefas" subtitle="Gerencie suas tarefas e demandas" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Badge variant="secondary" className="text-sm">

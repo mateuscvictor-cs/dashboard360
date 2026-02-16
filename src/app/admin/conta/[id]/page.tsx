@@ -348,7 +348,7 @@ export default function AccountPage() {
     <div className="flex flex-col h-full">
       <Header title={company.name} subtitle={company.segment || "Empresa"} showFilters={false} action={tourTriggerButton} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/admin/empresas">

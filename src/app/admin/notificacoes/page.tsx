@@ -102,7 +102,7 @@ export default function AdminNotificacoesPage() {
     <div className="flex flex-col h-full">
       <Header title="Enviar Notificações" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-2xl space-y-6">
           <Card>
             <CardHeader>
@@ -115,7 +115,7 @@ export default function AdminNotificacoesPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-medium">Destinatário</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <TargetButton
                       icon={Megaphone}
                       label="Broadcast"
@@ -152,7 +152,7 @@ export default function AdminNotificacoesPage() {
                 {targetType === "broadcast" && (
                   <div className="space-y-3">
                     <label className="text-sm font-medium">Público-alvo</label>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {(["ALL", "CLIENT", "CS_OWNER", "ADMIN"] as const).map((role) => (
                         <button
                           key={role}

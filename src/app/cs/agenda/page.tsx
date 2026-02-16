@@ -533,7 +533,7 @@ function NewBookingDialog({
                     Nenhum horário disponível nesta data
                   </p>
                 ) : (
-                  <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                     {slotsForDate.map((slot) => {
                       const time = new Date(slot.time).toLocaleTimeString("pt-BR", {
                         hour: "2-digit",
@@ -716,7 +716,7 @@ export default function CSAgendaPage() {
     <div className="flex flex-col h-full">
       <Header title="Agenda" subtitle="Gerenciar reuniões via Calendly" />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         {!isConfigured ? (
           <SetupWizard
             username={username}

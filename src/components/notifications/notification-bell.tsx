@@ -53,7 +53,7 @@ export function NotificationBell() {
         <div
           ref={panelRef}
           className={cn(
-            "absolute right-0 top-full mt-2 w-96 max-h-[70vh] rounded-lg border bg-popover shadow-lg z-50",
+            "absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-96 max-h-[70vh] overflow-hidden flex flex-col rounded-lg border bg-popover shadow-lg z-50",
             "animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
           )}
         >

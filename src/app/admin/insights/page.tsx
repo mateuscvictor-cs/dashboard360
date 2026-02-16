@@ -93,8 +93,8 @@ export default function InsightsPage() {
     <div className="flex flex-col h-full">
       <Header title="Insights IA" subtitle="Recomendações inteligentes" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/5 border-purple-200/50 dark:border-purple-500/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">

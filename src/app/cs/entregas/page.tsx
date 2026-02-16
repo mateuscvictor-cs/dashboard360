@@ -124,8 +124,8 @@ export default function CSEntregasPage() {
         subtitle="Gerencie todas as entregas das suas empresas"
       />
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card className={cn("cursor-pointer transition-all", statusFilter === "all" && "ring-2 ring-primary")} onClick={() => setStatusFilter("all")}>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold">{stats.total}</div>

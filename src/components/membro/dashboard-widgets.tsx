@@ -87,7 +87,7 @@ export function StatsOverview() {
     ];
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {metrics.map((metric, index) => (
                 <Card key={index} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
                     <CardContent className="p-4">

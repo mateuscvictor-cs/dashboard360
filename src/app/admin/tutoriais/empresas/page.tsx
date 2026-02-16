@@ -14,7 +14,7 @@ export default function AdminTutorialEmpresasPage() {
         subtitle="Passo a passo com indicação de prints para documentação"
         showFilters={false}
       />
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="flex items-center gap-4 mb-6">
           <Link href="/admin/tutoriais">
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">

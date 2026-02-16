@@ -220,7 +220,7 @@ export default function ClienteDeliveryDetailsPage({ params }: { params: Promise
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>

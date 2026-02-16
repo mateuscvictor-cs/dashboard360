@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { signOut, useSession } from "@/lib/auth-client";
 import { useUserProfile, UserInfo, UserAvatar } from "./user-avatar";
+import { useMobileSidebar } from "@/contexts/mobile-sidebar-context";
 
 type NavItem = {
   name: string;
@@ -58,6 +59,7 @@ export function ClienteSidebar() {
   const { user } = useUserProfile();
   const { data: session } = useSession();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const { open: mobileOpen, setOpen: setMobileOpen } = useMobileSidebar();
 
   const isClientMember = session?.user?.role === "CLIENT_MEMBER";
 
@@ -112,17 +114,29 @@ export function ClienteSidebar() {
   };
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col border-r bg-sidebar transition-all duration-300 relative",
-        collapsed ? "w-[72px]" : "w-64"
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
       )}
-    >
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
-      
-      <div className="relative flex h-16 items-center justify-between border-b px-4">
-        {!collapsed && (
-          <Link href={isClientMember ? "/cliente/recursos" : "/cliente/dashboard"} className="flex items-center gap-3">
+      <aside
+        id="mobile-sidebar"
+        className={cn(
+          "flex flex-col border-r bg-sidebar transition-all duration-300",
+          "fixed inset-y-0 left-0 z-50 w-64 max-md:transition-transform max-md:duration-300 md:relative md:translate-x-0",
+          collapsed ? "md:w-[72px]" : "md:w-64",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "md:translate-x-0"
+        )}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
+        
+        <div className="relative flex h-16 items-center justify-between border-b px-4">
+          {!collapsed && (
+            <Link href={isClientMember ? "/cliente/recursos" : "/cliente/dashboard"} className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
             {companyInfo?.logo ? (
               <>
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden">
@@ -143,7 +157,7 @@ export function ClienteSidebar() {
           </Link>
         )}
         {collapsed && (
-          <Link href={isClientMember ? "/cliente/recursos" : "/cliente/dashboard"} className="mx-auto">
+          <Link href={isClientMember ? "/cliente/recursos" : "/cliente/dashboard"} className="mx-auto" onClick={() => setMobileOpen(false)}>
             {companyInfo?.logo ? (
               <div className="flex h-9 w-9 items-center justify-center rounded-xl shadow-md shadow-primary/25 overflow-hidden">
                 {renderLogo(true)}
@@ -153,17 +167,17 @@ export function ClienteSidebar() {
             )}
           </Link>
         )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className={cn(
-            "h-7 w-7 text-muted-foreground hover:text-foreground",
-            collapsed && "absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 rounded-full border bg-background shadow-md"
-          )}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
+<Button
+        variant="ghost"
+        size="icon-sm"
+        className={cn(
+          "h-7 w-7 text-muted-foreground hover:text-foreground hidden md:inline-flex",
+          collapsed && "absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 rounded-full border bg-background shadow-md"
+        )}
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </Button>
       </div>
 
       <nav className="relative flex-1 space-y-1 p-3">
@@ -180,6 +194,7 @@ export function ClienteSidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => setMobileOpen(false)}
               className={cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
@@ -228,5 +243,6 @@ export function ClienteSidebar() {
         </Button>
       </div>
     </aside>
+    </>
   );
 }

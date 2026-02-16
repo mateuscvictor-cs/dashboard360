@@ -18,10 +18,15 @@ import {
   Play,
   Loader2,
   FolderOpen,
+  UserPlus,
+  Mail,
+  X,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationBell } from "@/components/notifications";
@@ -113,19 +118,49 @@ type DashboardData = {
   supportContacts: SupportContact[];
 };
 
+type CompanyMember = { id: string; name: string | null; email: string; createdAt: string };
+type CompanyInvite = { id: string; email: string; status: string; expiresAt: string; createdAt: string; invitedBy: string | null };
+type MembersStats = { limit: number; used: number; pending: number; remaining: number };
+
 export default function ClienteDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDelivery, setSelectedDelivery] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [membersData, setMembersData] = useState<{
+    members: CompanyMember[];
+    invites: CompanyInvite[];
+    stats: MembersStats;
+  } | null>(null);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+
+  const fetchMembers = async () => {
+    setLoadingMembers(true);
+    setMembersError(null);
+    try {
+      const res = await fetch("/api/cliente/company/members");
+      if (res.ok) {
+        const json = await res.json();
+        setMembersData({ members: json.members, invites: json.invites, stats: json.stats });
+      }
+    } catch {
+      setMembersError("Erro ao carregar membros");
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [dashboardRes, onboardingRes] = await Promise.all([
+        const [dashboardRes, onboardingRes, membersRes] = await Promise.all([
           fetch("/api/cliente/dashboard"),
           fetch("/api/cliente/onboarding"),
+          fetch("/api/cliente/company/members"),
         ]);
 
         if (dashboardRes.ok) {
@@ -142,6 +177,11 @@ export default function ClienteDashboardPage() {
             progress: { total: 0, completed: 0, inProgress: 0, pending: 0, percentage: 0 },
           });
         }
+
+        if (membersRes.ok) {
+          const json = await membersRes.json();
+          setMembersData({ members: json.members, invites: json.invites, stats: json.stats });
+        }
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
         setOnboardingData({
@@ -154,6 +194,49 @@ export default function ClienteDashboardPage() {
     }
     fetchData();
   }, []);
+
+  const handleInvite = async () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+    setInviting(true);
+    setMembersError(null);
+    try {
+      const res = await fetch("/api/cliente/company/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setInviteEmail("");
+        await fetchMembers();
+      } else {
+        setMembersError(json.error || "Erro ao enviar convite");
+      }
+    } catch {
+      setMembersError("Erro ao enviar convite");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleCancelInvite = async (id: string) => {
+    try {
+      const res = await fetch(`/api/cliente/invites/${id}`, { method: "DELETE" });
+      if (res.ok) await fetchMembers();
+    } catch {
+      setMembersError("Erro ao cancelar convite");
+    }
+  };
+
+  const handleResendInvite = async (id: string) => {
+    try {
+      const res = await fetch(`/api/cliente/invites/${id}/resend`, { method: "POST" });
+      if (res.ok) await fetchMembers();
+    } catch {
+      setMembersError("Erro ao reenviar convite");
+    }
+  };
 
   if (loading) {
     return (
@@ -209,7 +292,7 @@ export default function ClienteDashboardPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         {onboardingData && (
           <OnboardingTimeline
             steps={onboardingData.steps}
@@ -285,7 +368,7 @@ export default function ClienteDashboardPage() {
                           </div>
                           <Progress value={data.overallProgress} className="h-3" />
 
-                          <div className="grid grid-cols-3 gap-4 pt-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4">
                             <div className="text-center p-3 rounded-lg bg-muted/50">
                               <p className="text-2xl font-bold text-success">
                                 {data.metrics.completedDeliveries}
@@ -348,6 +431,116 @@ export default function ClienteDashboardPage() {
                   </div>
 
                   <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <UserPlus className="h-5 w-5 text-primary" />
+                          Membros da empresa
+                        </CardTitle>
+                        <CardDescription>
+                          Convide pessoas para acessar a área de membro (apenas /membro)
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {membersError && (
+                          <p className="text-sm text-destructive">{membersError}</p>
+                        )}
+                        <div className="flex gap-2">
+                          <Input
+                            type="email"
+                            placeholder="Email do convidado"
+                            className="flex-1"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleInvite}
+                            disabled={inviting || !inviteEmail.trim()}
+                          >
+                            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Convidar"}
+                          </Button>
+                        </div>
+                        {loading ? null : membersData ? (
+                          <>
+                            {membersData.stats.limit > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                {membersData.stats.used + membersData.stats.pending} de {membersData.stats.limit} vagas
+                                {membersData.stats.remaining > 0 && ` · ${membersData.stats.remaining} restantes`}
+                              </p>
+                            )}
+                            {membersData.members.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-2">Membros ativos</p>
+                                <ul className="space-y-2">
+                                  {membersData.members.map((m) => (
+                                    <li key={m.id} className="flex items-center gap-2 text-sm">
+                                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-medium">
+                                        {(m.name || m.email).charAt(0).toUpperCase()}
+                                      </div>
+                                      <span className="font-medium truncate">{m.name || "—"}</span>
+                                      <span className="text-muted-foreground truncate">{m.email}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {membersData.invites.filter((i) => i.status === "PENDING").length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-2">Convites pendentes</p>
+                                <ul className="space-y-2">
+                                  {membersData.invites
+                                    .filter((i) => i.status === "PENDING")
+                                    .map((i) => (
+                                      <li
+                                        key={i.id}
+                                        className="flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded-md bg-muted/50"
+                                      >
+                                        <span className="flex items-center gap-2 truncate">
+                                          <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                                          {i.email}
+                                        </span>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={() => handleResendInvite(i.id)}
+                                            aria-label="Reenviar convite"
+                                          >
+                                            <RefreshCw className="h-3.5 w-3.5" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-destructive hover:text-destructive"
+                                            onClick={() => handleCancelInvite(i.id)}
+                                            aria-label="Cancelar convite"
+                                          >
+                                            <X className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                      </li>
+                                    ))}
+                                </ul>
+                              </div>
+                            )}
+                            {membersData.members.length === 0 &&
+                              membersData.invites.filter((i) => i.status === "PENDING").length === 0 && (
+                                <p className="text-sm text-muted-foreground py-2">
+                                  Nenhum membro ainda. Envie um convite por email.
+                                </p>
+                              )}
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-2">
+                            Envie um convite por email para adicionar membros à empresa.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-lg">Próximas Sessões</CardTitle>

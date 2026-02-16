@@ -243,7 +243,7 @@ export default function CSOwnerPage() {
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
               label="Progresso do Dia"
@@ -799,7 +799,7 @@ export default function CSOwnerPage() {
                     className="w-full min-h-[100px] rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">Duração (min)</label>
                     <input

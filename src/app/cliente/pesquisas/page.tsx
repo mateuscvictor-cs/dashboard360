@@ -194,7 +194,7 @@ export default function PesquisasPage() {
     <div className="flex flex-col h-full">
       <ClienteHeader title="Pesquisas" subtitle="Suas avaliações de satisfação" />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {pendingSurveys.length > 0 && (
             <Card className="border-warning/50 bg-warning/5">

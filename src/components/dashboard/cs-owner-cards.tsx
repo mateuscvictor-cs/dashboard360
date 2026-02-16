@@ -285,7 +285,7 @@ export function CSOwnerCards({ metrics }: CSOwnerCardsProps) {
           })}
         </div>
         
-        <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4">
+        <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div className="text-center px-3 py-2 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground">Total Empresas</p>
             <p className="text-xl font-bold">{totalCompanies}</p>

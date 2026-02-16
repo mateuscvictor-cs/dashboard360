@@ -94,7 +94,7 @@ export function AIBubble() {
       <div className="fixed bottom-6 right-6 z-50">
         {open && (
           <div
-            className="absolute bottom-14 right-0 w-[380px] max-h-[600px] rounded-xl border border-border bg-card shadow-xl flex flex-col overflow-hidden"
+            className="absolute bottom-14 right-0 w-[calc(100vw-2rem)] max-w-[380px] max-h-[85vh] sm:max-h-[600px] rounded-xl border border-border bg-card shadow-xl flex flex-col overflow-hidden"
             role="dialog"
             aria-label="Assistente de IA"
           >
@@ -113,7 +113,7 @@ export function AIBubble() {
               </Button>
             </div>
 
-            <div className="flex-1 min-h-[280px] max-h-[420px] overflow-y-auto">
+            <div className="flex-1 min-h-[200px] max-h-[50vh] sm:min-h-[280px] sm:max-h-[420px] overflow-y-auto">
               <div className="p-4 space-y-4">
                 {messages.length === 0 && (
                   <p className="text-sm text-muted-foreground">

@@ -23,7 +23,7 @@ function canAccessRoute(role: UserRole, pathname: string): boolean {
   if (role === "ADMIN") return true;
   if (role === "CS_OWNER") return pathname.startsWith("/cs");
   if (role === "CLIENT") return pathname.startsWith("/cliente");
-  if (role === "CLIENT_MEMBER") return pathname.startsWith("/membro") || pathname.startsWith("/cliente/recursos"); // Members share resources route if needed, or stick to /membro
+  if (role === "CLIENT_MEMBER") return pathname.startsWith("/membro");
   return false;
 }
 

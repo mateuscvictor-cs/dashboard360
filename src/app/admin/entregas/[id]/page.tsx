@@ -318,7 +318,7 @@ export default function AdminDeliveryDetailsPage({ params }: { params: Promise<{
         backLink="/admin/entregas"
       />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <Badge variant={status.variant} className="text-sm">
             <StatusIcon className="h-3.5 w-3.5 mr-1" />

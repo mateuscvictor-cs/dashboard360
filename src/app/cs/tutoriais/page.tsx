@@ -25,7 +25,7 @@ export default function CSTutoriaisPage() {
         subtitle="Como utilizar o sistema na área CS"
         showFilters={false}
       />
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-3xl space-y-4">
           <p className="text-muted-foreground text-sm">
             Use os tutoriais abaixo para aprender o fluxo de uso do Dashboard 360. Cada tutorial traz passos com indicação de onde tirar prints para documentação ou treinamento.

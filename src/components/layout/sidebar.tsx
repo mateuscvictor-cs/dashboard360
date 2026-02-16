@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { signOut } from "@/lib/auth-client";
 import { useUserProfile, UserInfo, UserAvatar } from "./user-avatar";
+import { useMobileSidebar } from "@/contexts/mobile-sidebar-context";
 
 type NavItem = {
   name: string;
@@ -80,6 +81,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const { user } = useUserProfile();
+  const { open: mobileOpen, setOpen: setMobileOpen } = useMobileSidebar();
 
   useEffect(() => {
     const initial: Record<string, boolean> = {};
@@ -102,17 +104,29 @@ export function Sidebar() {
   };
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col border-r bg-sidebar transition-all duration-300 relative",
-        collapsed ? "w-[72px]" : "w-64"
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
       )}
-    >
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
-      
-      <div className="relative flex h-16 items-center justify-between border-b px-4">
-        {!collapsed && (
-          <Link href="/admin" className="flex items-center gap-3">
+      <aside
+        id="mobile-sidebar"
+        className={cn(
+          "flex flex-col border-r bg-sidebar transition-all duration-300",
+          "fixed inset-y-0 left-0 z-50 w-64 max-md:transition-transform max-md:duration-300 md:relative md:translate-x-0",
+          collapsed ? "md:w-[72px]" : "md:w-64",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "md:translate-x-0"
+        )}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
+        
+        <div className="relative flex h-16 items-center justify-between border-b px-4">
+          {!collapsed && (
+            <Link href="/admin" className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
             <Image
               src="/logo-vanguardia.png"
               alt="Vanguardia"
@@ -123,7 +137,7 @@ export function Sidebar() {
           </Link>
         )}
         {collapsed && (
-          <Link href="/admin" className="mx-auto">
+          <Link href="/admin" className="mx-auto" onClick={() => setMobileOpen(false)}>
             <Image
               src="/logo-vanguardia.png"
               alt="Vanguardia"
@@ -137,7 +151,7 @@ export function Sidebar() {
           variant="ghost"
           size="icon-sm"
           className={cn(
-            "h-7 w-7 text-muted-foreground hover:text-foreground",
+            "h-7 w-7 text-muted-foreground hover:text-foreground hidden md:inline-flex",
             collapsed && "absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 rounded-full border bg-background shadow-md"
           )}
           onClick={() => setCollapsed(!collapsed)}
@@ -187,6 +201,7 @@ export function Sidebar() {
                     <Link
                       key={item.name}
                       href={item.href}
+                      onClick={() => setMobileOpen(false)}
                       className={cn(
                         "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                         isActive
@@ -241,5 +256,6 @@ export function Sidebar() {
         </Button>
       </div>
     </aside>
+    </>
   );
 }

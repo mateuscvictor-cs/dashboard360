@@ -500,8 +500,8 @@ export default function OperacaoPage() {
     <div className="flex flex-col h-full">
       <Header title="Operação" subtitle="Gestão da equipe de CS" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
             label="Atividades Hoje"
             value={totalCompleted}
@@ -1196,7 +1196,7 @@ export default function OperacaoPage() {
                   </Button>
                 </div>
                 <div className="flex-1 overflow-auto p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium mb-1.5 block">Nome do Template</label>
                       <input
@@ -1690,7 +1690,7 @@ function CSCard({ cs }: { cs: DBCSOwner }) {
               <span className="font-semibold">{percentage}%</span>
             </div>
             <Progress value={percentage} className="h-2" />
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
               <div className="text-center p-2 rounded-lg bg-muted/50">
                 <p className="text-lg font-bold">{cs.accountsCount}</p>
                 <p className="text-xs text-muted-foreground">Contas</p>
@@ -1986,7 +1986,7 @@ function NewDemandModal({
               className="w-full min-h-[80px] rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Empresa</label>
               <input
@@ -2011,7 +2011,7 @@ function NewDemandModal({
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Tipo</label>
               <select

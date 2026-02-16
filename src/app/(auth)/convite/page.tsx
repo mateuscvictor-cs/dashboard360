@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Wizard } from "@/components/ui/wizard";
 import { WelcomeStep, AccountStep, PhotoStep, CompleteStep } from "@/components/onboarding";
 
-type InviteType = "COMPANY_ADMIN" | "MEMBER_ADMIN" | "MEMBER_CS";
+type InviteType = "COMPANY_ADMIN" | "COMPANY_MEMBER" | "MEMBER_ADMIN" | "MEMBER_CS";
 
 interface InviteData {
   email: string;
@@ -100,7 +100,7 @@ function ConviteContent() {
   };
 
   const handleGoToLogin = () => {
-    router.push("/");
+    router.push(inviteData?.type === "COMPANY_MEMBER" ? "/membro" : "/");
   };
 
   const nextStep = () => {
@@ -174,7 +174,7 @@ function ConviteContent() {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5" />
 
       <Card className="w-full max-w-lg relative z-10 shadow-2xl border-0 bg-background/95 backdrop-blur-xl overflow-hidden">
-        <div className="p-6 pb-0">
+        <div className="p-4 sm:p-6 pb-0">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand shadow-md shadow-primary/25">
               <Zap className="h-5 w-5 text-white" />
@@ -194,7 +194,7 @@ function ConviteContent() {
           )}
         </div>
 
-        <CardContent className="p-6 pt-2">
+        <CardContent className="p-4 sm:p-6 pt-2">
           <AnimatePresence mode="wait">
             {currentStep === 0 && (
               <WelcomeStep

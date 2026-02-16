@@ -200,7 +200,7 @@ export default function EmailTemplatesPage() {
     <div className="flex flex-col h-full">
       <Header title="Templates de E-mail" showFilters={false} />
 
-      <div className="flex-1 overflow-hidden p-6">
+      <div className="flex-1 overflow-hidden p-4 sm:p-6">
         <div className="h-full flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <Button

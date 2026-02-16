@@ -293,8 +293,8 @@ export default function EmpresasPage() {
     <div className="flex flex-col h-full">
       <Header title="Empresas" subtitle={subtitle} showFilters={false} action={tourTriggerButton} />
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -516,7 +516,8 @@ export default function EmpresasPage() {
         ) : (
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+                <table className="w-full min-w-[800px]">
                 <thead>
                   <tr className="border-b">
                     <th className="p-4 text-left">
@@ -691,6 +692,7 @@ export default function EmpresasPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </CardContent>
           </Card>
         )}

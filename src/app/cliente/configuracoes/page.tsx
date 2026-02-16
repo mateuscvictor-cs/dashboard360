@@ -48,7 +48,7 @@ export default function ClienteConfiguracoesPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-2xl space-y-6">
           <ProfileSettings />
 

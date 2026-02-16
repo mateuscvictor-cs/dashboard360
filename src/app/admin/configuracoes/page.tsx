@@ -45,7 +45,7 @@ export default function ConfiguracoesPage() {
     <div className="flex flex-col h-full">
       <Header title="Configurações" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="profile" className="gap-2">
@@ -94,7 +94,7 @@ export default function ConfiguracoesPage() {
                   <CardDescription>Escolha como o painel será exibido</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <ThemeOption
                       icon={Sun}
                       label="Claro"

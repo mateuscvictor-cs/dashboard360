@@ -313,7 +313,7 @@ export default function AcessosPage() {
     <div className="flex flex-col h-full">
       <Header title="Gestão de Acessos" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <StatsCard
             label="Convites Pendentes"
@@ -711,7 +711,7 @@ export default function AcessosPage() {
                   <label className="text-sm font-medium mb-2 block">
                     Tipo de Acesso
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     <InviteTypeButton
                       type="COMPANY_ADMIN"
                       label="Cliente"

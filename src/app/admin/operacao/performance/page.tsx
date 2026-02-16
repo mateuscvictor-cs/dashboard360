@@ -199,7 +199,7 @@ export default function PerformancePage() {
     <div className="flex flex-col h-full">
       <Header title="Performance" subtitle="Análise de performance da equipe CS" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button
@@ -240,7 +240,7 @@ export default function PerformancePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <PerformanceCard
             title="Score Médio"
             value={avgScore}
@@ -525,7 +525,7 @@ export default function PerformancePage() {
                                 {snapshot.performanceScore.toFixed(0)}
                               </span>
                             </div>
-                            <div className="grid grid-cols-4 gap-2 text-center">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
                               <div className="p-2 rounded-lg bg-muted/50">
                                 <p className="text-xs text-muted-foreground">Exec</p>
                                 <p className="font-semibold text-sm">{snapshot.scoreExecution.toFixed(0)}</p>

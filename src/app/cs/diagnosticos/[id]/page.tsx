@@ -11,7 +11,7 @@ export default function CSDiagnosticDetailPage({
   const { id } = use(params);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <DiagnosticAnalytics diagnosticId={id} backUrl="/cs/empresas" />
     </div>
   );

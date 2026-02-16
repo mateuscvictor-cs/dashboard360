@@ -151,8 +151,8 @@ export default function CSHomePage() {
     <div className="flex flex-col h-full">
       <Header title="Minha Área" subtitle="Visão geral do seu dia" showFilters={false} />
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link href="/cs/empresas">
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-4">
