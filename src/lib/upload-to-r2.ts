@@ -1,4 +1,4 @@
-const PROXY_MAX_BYTES = 4 * 1024 * 1024;
+const PROXY_MAX_BYTES = 25 * 1024 * 1024;
 
 export interface UploadResult {
   readUrl: string;
@@ -89,7 +89,7 @@ export async function uploadFileToR2(
       file.size > PROXY_MAX_BYTES
     ) {
       throw new Error(
-        "Upload direto falhou (configure CORS no bucket R2 em Cloudflare) ou envie um arquivo de até 4MB."
+        "Upload direto falhou (configure CORS no bucket R2 em Cloudflare) ou envie um arquivo de até 25MB."
       );
     }
     throw err;

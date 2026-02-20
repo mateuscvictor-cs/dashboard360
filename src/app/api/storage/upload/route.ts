@@ -12,7 +12,7 @@ const ALLOWED_CONTEXTS: PresignContext[] = [
   "resource",
 ];
 
-const MAX_PROXY_SIZE_BYTES = 4 * 1024 * 1024;
+const MAX_PROXY_SIZE_BYTES = 25 * 1024 * 1024;
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     if (file.size > MAX_PROXY_SIZE_BYTES) {
       return NextResponse.json(
         {
-          error: `Arquivo excede 4MB. Use upload direto (configure CORS no bucket R2) ou envie um arquivo menor.`,
+          error: `Arquivo excede 25MB. Use upload direto (configure CORS no bucket R2) ou envie um arquivo menor.`,
         },
         { status: 400 }
       );
